@@ -1,0 +1,12 @@
+Flask
+requests
+openai
+streamlit
+transformers
+torch
+pillow
+speechrecognition
+psycopg2-binary
+SQLAlchemy
+Flask-SQLAlchemy
+Flask-cors
