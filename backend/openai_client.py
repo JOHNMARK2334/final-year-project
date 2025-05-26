@@ -18,7 +18,7 @@ def get_openai_response(prompt):
             return "Hello! I'm your health assistant. Please describe your symptoms so I can help you better."
         
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4.1-2025-04-14",
             messages=[
                 {
                     "role": "system",

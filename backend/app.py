@@ -1,3 +1,9 @@
+from dotenv import load_dotenv
+import os
+
+env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+load_dotenv(dotenv_path=env_path)
+
 from flask import Flask, request, jsonify, send_from_directory
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_migrate import Migrate
@@ -9,20 +15,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from utils import detect_language, translate_to_english, extract_text_from_pdf
 from openai_client import get_openai_response
 import datetime
-import os
 import logging
 import tempfile
-from dotenv import load_dotenv
 import uuid
 from gtts import gTTS
-
-# This loads the .env from the project root
-env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-print("ENV PATH:", env_path)
-with open(env_path) as f:
-    print("ENV CONTENTS:")
-    print(f.read())
-load_dotenv(dotenv_path=env_path)
 
 app = Flask(__name__)
 CORS(app)
@@ -163,6 +159,8 @@ def patch_chat(user_id, chat_id):
 def chat_message(user_id, chat_id):
     data = request.get_json()
     user_message = data.get("content")
+    answers_dict = data.get("answers")
+    callback = data.get("callback")  # New: Support for callback function name
     chat = Chat.query.get_or_404(chat_id)
     if chat.user_id != user_id:
         return jsonify({"error": "Unauthorized"}), 403
@@ -172,11 +170,24 @@ def chat_message(user_id, chat_id):
     db.session.add(msg)
     db.session.commit()
 
-    # Conversational logic with Infermedica
+    # Fetch last 10 messages for context
+    messages = ChatMessage.query.filter_by(chat_id=chat.id).order_by(ChatMessage.created_at.desc()).limit(10).all()
+    messages = list(reversed(messages))  # Oldest first
+    context = [m.content for m in messages if m.sender == "user" or m.sender == "ai"]
+
+    # Conversational logic with Infermedica, pass context and answers_dict
     state = chat.state or {}
-    ai_message = infermedica_conversational_flow(state, user_message)
-    if not ai_message or not ai_message.strip():
-        ai_message = "I'm still processing your information. Please provide more details about your symptoms or answer the previous question."
+    ai_message = infermedica_conversational_flow(state, user_message, context=context, answers_dict=answers_dict, callback=callback)
+    fallback_phrases = [
+        "I don't know",
+        "I'm sorry",
+        "I am not sure",
+        "As an AI language model",
+        "I cannot answer"
+    ]
+    hidden = any(phrase.lower() in ai_message.lower() for phrase in fallback_phrases)
+    
+    # Store the AI message in the database
     ai_msg = ChatMessage(chat_id=chat.id, sender="ai", content=ai_message)
     db.session.add(ai_msg)
 
@@ -184,7 +195,30 @@ def chat_message(user_id, chat_id):
     chat.state = state
     chat.updated_at = datetime.datetime.utcnow()
     db.session.commit()
-    return jsonify({"ai_message": ai_message})
+
+    # If the state has a last_question, return it as a structured followup
+    followup = None
+    if state.get("last_question"):
+        q = state["last_question"]
+        followup = {
+            "text": q.get("text"),
+            "items": [
+                {
+                    "name": item.get("name", ""),
+                    "choices": [c["label"] for c in item.get("choices", [])],
+                    "type": item.get("type", "single")
+                } for item in q.get("items", [])
+            ],
+            "callback": callback  # Pass the callback to the frontend
+        }
+
+    return jsonify({
+        "ai_message": "" if hidden else ai_message,
+        "hidden": hidden,
+        "raw_message": ai_message,
+        "followup": followup,  # always present if last_question is set
+        "callback": callback  # Return the callback for frontend state management
+    })
 
 # --- Health Check Endpoint ---
 @app.route('/api/health', methods=['GET'])
@@ -235,7 +269,16 @@ def api_openai():
         data = request.get_json()
         prompt = data.get('prompt', '')
         response = get_openai_response(prompt)
-        return jsonify({'response': response})
+        # Hide fallback/default responses from user
+        fallback_phrases = [
+            "I don't know",
+            "I'm sorry",
+            "I am not sure",
+            "As an AI language model",
+            "I cannot answer"
+        ]
+        hide = any(phrase.lower() in response.lower() for phrase in fallback_phrases)
+        return jsonify({'response': '' if hide else response, 'raw_response': response, 'hidden': hide})
     except Exception as e:
         print("OpenAI endpoint error:", e)
         return jsonify({'error': str(e)}), 500
