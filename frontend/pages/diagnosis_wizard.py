@@ -139,11 +139,16 @@ def main():
         st.markdown("#### Potential Conditions (powered by Infermedica)")
 
         headers = {
-            "App-Id": st.secrets["INFERMEDICA_APP_ID"],
-            "App-Key": st.secrets["INFERMEDICA_APP_KEY"],
+            "App-Id": st.secrets["INFERMEDICA_APP_ID"] if "INFERMEDICA_APP_ID" in st.secrets else None,
+            "App-Key": st.secrets["INFERMEDICA_APP_KEY"] if "INFERMEDICA_APP_KEY" in st.secrets else None,
             "Content-Type": "application/json"
         }
-
+        if not headers["App-Id"] or not headers["App-Key"]:
+            st.warning("Infermedica API keys are not set in Streamlit secrets. Please add them to .streamlit/secrets.toml.")
+        # Ensure gender is either 'male' or 'female'
+        gender = st.session_state.form_data["Gender"].lower()
+        if gender not in ["male", "female"]:
+            gender = "male"
         evidence = get_symptom_ids(st.session_state.form_data["Primary Symptom"], headers)
 
         if not evidence:
@@ -151,7 +156,7 @@ def main():
 Try entering more common terms like: 'headache', 'fever', 'fatigue', or 'nausea'.""")
         else:
             payload = {
-                "sex": st.session_state.form_data["Gender"].lower(),
+                "sex": gender,
                 "age": {"value": int(st.session_state.form_data["Age"])},
                 "evidence": evidence
             }

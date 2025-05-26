@@ -1,8 +1,12 @@
 import requests
 import os
+import logging
 
-INFERMEDICA_APP_ID = os.getenv("INFERMEDICA_APP_ID", "664abe91")
-INFERMEDICA_APP_KEY = os.getenv("INFERMEDICA_APP_KEY", "31cfbbb9c19870b80dce490572a6ddb9")
+INFERMEDICA_APP_ID = os.getenv("INFERMEDICA_APP_ID")
+INFERMEDICA_APP_KEY = os.getenv("INFERMEDICA_APP_KEY")
+
+if not INFERMEDICA_APP_ID or not INFERMEDICA_APP_KEY:
+    logging.error("Infermedica API keys are not set. Please set INFERMEDICA_APP_ID and INFERMEDICA_APP_KEY in your environment.")
 
 HEADERS = {
     "App-Id": INFERMEDICA_APP_ID,
@@ -71,6 +75,9 @@ def get_risk_factor_details(risk_factor_id):
         return {}
 
 def infermedica_conversational_flow(state, user_message):
+    if not INFERMEDICA_APP_ID or not INFERMEDICA_APP_KEY:
+        return "Medical reasoning engine is not configured. Please contact the administrator."
+
     # Initialize state if empty
     if not state:
         state["evidence"] = []

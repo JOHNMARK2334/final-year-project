@@ -20,21 +20,18 @@ def render(on_navigate, current_page, on_logout=None):  # Make on_logout optiona
             st.button('Home', 
                      key='nav_home', 
                      on_click=lambda: on_navigate('home'),
-                     type="primary" if current_page == 'home' else "secondary",
                      use_container_width=True)
         
         with col_symptom:
             st.button('Symptom Checker',
                      key='nav_chat',
                      on_click=lambda: on_navigate('chat'),
-                     type="primary" if current_page == 'chat' else "secondary",
                      use_container_width=True)
     
     with col3:
         st.button('Start Checkup',
                  key='nav_checkup',
                  on_click=lambda: on_navigate('chat'),
-                 type="primary",
                  use_container_width=True)
     
     if on_logout:  # Only show logout if callback provided
@@ -42,7 +39,6 @@ def render(on_navigate, current_page, on_logout=None):  # Make on_logout optiona
             st.button('Logout',
                      key='nav_logout',
                      on_click=on_logout,
-                     type="secondary",
                      use_container_width=True)
     
     st.markdown('<hr style="margin-top: 0px; margin-bottom: 15px;">', unsafe_allow_html=True)

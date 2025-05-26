@@ -1,9 +1,14 @@
 import requests
+import os
+
+
+INFERMEDICA_APP_ID = os.getenv("INFERMEDICA_APP_ID")
+INFERMEDICA_APP_KEY = os.getenv("INFERMEDICA_APP_KEY")
 
 def get_diagnosis(symptoms_text, sex="male", age=30, symptoms=None):
     headers = {
-        'App-Id': '664abe91',  # Replace with your Infermedica App-Id
-        'App-Key': '31cfbbb9c19870b80dce490572a6ddb9',  # Replace with your Infermedica App-Key
+        'App-Id': INFERMEDICA_APP_ID,  # Replace with your Infermedica App-Id
+        'App-Key': INFERMEDICA_APP_KEY,  # Replace with your Infermedica App-Key
         'Content-Type': 'application/json'
     }
     # Step 1: Parse symptoms from text and explicit symptoms

@@ -10,3 +10,8 @@ psycopg2-binary
 SQLAlchemy
 Flask-SQLAlchemy
 Flask-cors
+python-dotenv
+Flask-Migrate
+Flask-JWT-Extended
+flask-migrate
+flask-jwt-extended

@@ -18,7 +18,7 @@ class Chat(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     title = db.Column(db.String(255), default="Untitled")
-    state = db.Column(db.JSON, default={})
+    state = db.Column(db.JSON, default=lambda: {})
     messages = db.relationship('ChatMessage', backref='chat', lazy=True, cascade="all, delete-orphan")
 
 class ChatMessage(db.Model):

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_migrate import Migrate
 from flask_cors import CORS
@@ -6,9 +6,23 @@ from functools import wraps
 from models import db, Chat, ChatMessage, User
 from infermedica_conversation import infermedica_conversational_flow
 from werkzeug.security import generate_password_hash, check_password_hash
+from utils import detect_language, translate_to_english, extract_text_from_pdf
+from openai_client import get_openai_response
 import datetime
 import os
 import logging
+import tempfile
+from dotenv import load_dotenv
+import uuid
+from gtts import gTTS
+
+# This loads the .env from the project root
+env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+print("ENV PATH:", env_path)
+with open(env_path) as f:
+    print("ENV CONTENTS:")
+    print(f.read())
+load_dotenv(dotenv_path=env_path)
 
 app = Flask(__name__)
 CORS(app)
@@ -25,6 +39,10 @@ logging.basicConfig(level=logging.INFO)
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
+
+print("INFERMEDICA_APP_ID:", os.getenv("INFERMEDICA_APP_ID"))
+print("INFERMEDICA_APP_KEY:", os.getenv("INFERMEDICA_APP_KEY"))
+print("OPENAI_API_KEY:", os.getenv("OPENAI_API_KEY"))
 
 # --- User Registration Endpoint ---
 @app.route('/api/auth/register', methods=['POST'])
@@ -172,6 +190,100 @@ def chat_message(user_id, chat_id):
 @app.route('/api/health', methods=['GET'])
 def health():
     return jsonify({"status": "ok"})
+
+# --- Utility: Translate to English ---
+@app.route('/api/utils/translate', methods=['POST'])
+def api_translate():
+    data = request.get_json()
+    text = data.get('text', '')
+    translated = translate_to_english(text)
+    return jsonify({'translated': translated})
+
+# --- Utility: Detect Language ---
+@app.route('/api/utils/detect_language', methods=['POST'])
+def api_detect_language():
+    data = request.get_json()
+    text = data.get('text', '')
+    lang = detect_language(text)
+    return jsonify({'lang': lang})
+
+# --- Utility: Extract Text from File (PDF/Image/Audio) ---
+@app.route('/api/utils/extract', methods=['POST'])
+def api_extract():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    file = request.files['file']
+    filename = file.filename.lower()
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        file.save(tmp.name)
+        if filename.endswith('.pdf'):
+            text = extract_text_from_pdf(tmp.name)
+        elif filename.endswith('.jpg') or filename.endswith('.jpeg') or filename.endswith('.png'):
+            from utils import process_image
+            text = process_image(tmp.name)
+        elif filename.endswith('.wav') or filename.endswith('.mp3') or filename.endswith('.m4a'):
+            from utils import process_audio
+            text = process_audio(tmp.name)
+        else:
+            text = ''
+    return jsonify({'text': text})
+
+# --- OpenAI Completion Endpoint ---
+@app.route('/api/openai', methods=['POST'])
+def api_openai():
+    try:
+        data = request.get_json()
+        prompt = data.get('prompt', '')
+        response = get_openai_response(prompt)
+        return jsonify({'response': response})
+    except Exception as e:
+        print("OpenAI endpoint error:", e)
+        return jsonify({'error': str(e)}), 500
+
+# --- Image Generation Endpoint ---
+@app.route('/generate_image', methods=['POST'])
+def generate_image():
+    try:
+        data = request.get_json()
+        prompt = data.get('prompt', '')
+        if not prompt:
+            return jsonify({'error': 'No prompt provided'}), 400
+        # Use OpenAI DALL-E API
+        if not os.getenv("OPENAI_API_KEY"):
+            return jsonify({'error': 'OpenAI API key not set'}), 500
+        import openai
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        response = openai.Image.create(
+            prompt=prompt,
+            n=1,
+            size="512x512"
+        )
+        image_url = response['data'][0]['url']
+        return jsonify({'image_url': image_url})
+    except Exception as e:
+        print("Image generation error:", e)
+        return jsonify({'error': str(e)}), 500
+
+# --- TTS Endpoint ---
+@app.route('/tts', methods=['POST'])
+def tts():
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        if not text:
+            return jsonify({'error': 'No text provided'}), 400
+        # Generate TTS audio using gTTS
+        audio_dir = os.path.join(app.root_path, 'static', 'audio')
+        os.makedirs(audio_dir, exist_ok=True)
+        filename = f"tts_{uuid.uuid4().hex}.mp3"
+        filepath = os.path.join(audio_dir, filename)
+        tts = gTTS(text)
+        tts.save(filepath)
+        audio_url = f"/static/audio/{filename}"
+        return jsonify({'audio_url': audio_url})
+    except Exception as e:
+        print("TTS error:", e)
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)

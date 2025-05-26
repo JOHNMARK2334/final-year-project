@@ -1,9 +1,18 @@
 import openai
+import os
+import logging
 
-client = openai.OpenAI(api_key = "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")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    logging.error("OPENAI_API_KEY is not set in environment variables.")
+
+client = openai.OpenAI(api_key = OPENAI_API_KEY)
 
 def get_openai_response(prompt):
     try:
+        if not OPENAI_API_KEY:
+            return "OpenAI API is not configured. Please contact the administrator."
+        
         # Handle empty or greeting prompts
         if not prompt.strip() or prompt.lower().strip() in ['hello', 'hi', 'hey']:
             return "Hello! I'm your health assistant. Please describe your symptoms so I can help you better."

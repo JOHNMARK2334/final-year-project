@@ -127,6 +127,50 @@ class SpeechToTextProcessor(AudioProcessorBase):
         except Exception as e:
             return f"Error: {e}"
 
+# Helper: Translate text to English using backend
+def translate_to_english(text, headers):
+    resp = requests.post(f"{BACKEND_URL}/utils/translate", json={"text": text}, headers=headers)
+    if resp.status_code == 200:
+        return resp.json().get("translated", text)
+    return text
+
+# Helper: Extract text from file using backend
+def extract_text_from_file(file, headers):
+    files = {"file": file}
+    resp = requests.post(f"{BACKEND_URL}/api/utils/extract", files=files, headers=headers)
+    if resp.status_code == 200:
+        return resp.json().get("text", "")
+    return ""
+
+# Helper: Get OpenAI response from backend
+def get_openai_response(prompt, headers):
+    resp = requests.post(f"{BACKEND_URL}/openai", json={"prompt": prompt}, headers=headers)
+    if resp.status_code == 200:
+        return resp.json().get("response", "")
+    return ""
+
+# Helper: Send message to Infermedica
+def get_infermedica_response(chat_id, content, headers):
+    resp = requests.post(f"{BACKEND_URL}/chats/{chat_id}/message", json={"content": content}, headers=headers)
+    if resp.status_code == 200:
+        data = resp.json()
+        return data.get("ai_message", ""), data
+    return "", {}
+
+# Helper: Generate image using backend
+def generate_image(prompt, headers):
+    resp = requests.post(f"{BACKEND_URL}/generate_image", json={"prompt": prompt}, headers=headers)
+    if resp.status_code == 200:
+        return resp.json().get("image_url", None)
+    return None
+
+# Helper: Get TTS audio from backend
+def get_tts_audio(text, headers):
+    resp = requests.post(f"{BACKEND_URL}/tts", json={"text": text}, headers=headers)
+    if resp.status_code == 200:
+        return resp.json().get("audio_url", None)
+    return None
+
 def render(on_start_diagnosis=lambda: set_page('wizard'), backend_url=BACKEND_URL, auth_token=st.session_state.get('auth_token', None)):
     st.markdown(CHATGPT_CSS, unsafe_allow_html=True)
     headers = {
@@ -205,6 +249,18 @@ def render(on_start_diagnosis=lambda: set_page('wizard'), backend_url=BACKEND_UR
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+                    # If this is an AI message, add TTS play button
+                    if msg.get("sender") == "ai" and msg.get("content"):
+                        if st.button(f"🔊 Play AI Voice {msg['created_at']}", key=f"tts_{msg['created_at']}"):
+                            audio_url = get_tts_audio(msg["content"], headers)
+                            if audio_url:
+                                st.audio(audio_url)
+                            else:
+                                st.error("Failed to generate voice output.")
+            # Show generated images if any
+            if "generated_images" in st.session_state:
+                for img_url in st.session_state.generated_images:
+                    st.image(img_url, caption="Generated Image", use_column_width=True)
         except Exception as e:
             st.error(f"Failed to load chat: {e}")
     else:
@@ -230,58 +286,101 @@ def render(on_start_diagnosis=lambda: set_page('wizard'), backend_url=BACKEND_UR
     with button_col:
         if st.button("Send"):
             if st.session_state.user_input.strip():
-                send_message(st.session_state.user_input, headers)
-                st.rerun()  # This will reset the input field
+                handle_user_message(st.session_state.user_input, headers)
+                st.rerun()
 
     file_col, voice_col = st.columns([1, 1])
     with file_col:
         uploaded_file = st.file_uploader(
             "Upload",
-            type=["jpg", "png", "pdf"],
+            type=["jpg", "png", "pdf", "wav", "mp3"],
             label_visibility="collapsed"
         )
         if uploaded_file:
-            send_message("Uploaded file: " + uploaded_file.name, headers, {"file": uploaded_file})
+            if uploaded_file.type in ["audio/wav", "audio/x-wav", "audio/mp3", "audio/mpeg"] or uploaded_file.name.lower().endswith((".wav", ".mp3")):
+                files = {'file': uploaded_file}
+                response = requests.post(f"{BACKEND_URL}/api/utils/extract", files=files)
+                if response.status_code == 200:
+                    text = response.json().get("text", "")
+                    if text:
+                        handle_user_message(text, headers)
+                        st.rerun()
+                    else:
+                        st.error("No text could be extracted from the audio file.")
+                else:
+                    st.error(f"Failed to extract text from audio file: ({response.status_code}) {response.text}")
+            else:
+                files = {'file': uploaded_file}
+                response = requests.post(f"{BACKEND_URL}/api/utils/extract", files=files)
+                if response.status_code == 200:
+                    text = response.json().get("text", "")
+                    if text:
+                        handle_user_message(text, headers)
+                        st.rerun()
+                    else:
+                        st.error("No text could be extracted from the file.")
+                else:
+                    st.error(f"Failed to extract text from file: ({response.status_code}) {response.text}")
 
     with voice_col:
-        if st.button("🎤 Start Recording"):
-            ctx = webrtc_streamer(
-                key="speech",
-                audio_receiver_size=1024,
-                async_processing=True,
-                audio_processor_factory=SpeechToTextProcessor,
-            )
-            if ctx.audio_processor:
-                st.session_state.voice_text = ctx.audio_processor.get_text()
-                if st.session_state.voice_text:
-                    send_message(st.session_state.voice_text, headers)
+        ctx = webrtc_streamer(
+            key="speech",
+            audio_receiver_size=1024,
+            async_processing=True,
+            audio_processor_factory=SpeechToTextProcessor,
+            video=False,  # Only audio, disables camera
+        )
+        if ctx and ctx.state.playing:
+            st.info("Recording... Speak now!")
+        if ctx and ctx.audio_processor:
+            text = ctx.audio_processor.get_text()
+            if text:
+                if st.button("Send Voice Input"):
+                    handle_user_message(text, headers)
                     st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-def send_message(content, headers, files=None):
+# New: Unified message handler for text
+
+def handle_user_message(content, headers):
     if not st.session_state.selected_chat_id:
         st.error("No chat selected")
         return
-    
-    try:
-        data = {"content": content}
-        headers_copy= headers.copy()
-        if files:
-            headers_copy.pop("Content-Type", None)  # Remove Content-Type for file uploads
-            response = requests.post(
-                f"{BACKEND_URL}/chats/{st.session_state.selected_chat_id}/message",
-                files=files,
-                headers=headers_copy,
-            )
+    # Detect image generation prompt
+    if any(kw in content.lower() for kw in ["generate an image", "create an image", "draw an image", "make an image"]):
+        image_url = generate_image(content, headers)
+        if image_url:
+            if "generated_images" not in st.session_state:
+                st.session_state.generated_images = []
+            st.session_state.generated_images.append(image_url)
+            st.success("Image generated!")
         else:
-            response = requests.post(
-                f"{BACKEND_URL}/chats/{st.session_state.selected_chat_id}/message",
-                json=data,
-                headers=headers_copy,
-            )
-        
-        if response.status_code != 200:
-            st.error(f"Failed to send message: {response.text}")
-    except Exception as e:
-        st.error(f"Error sending message: {str(e)}")
+            st.error("Failed to generate image.")
+        return
+    # 1. Translate if not English
+    lang = requests.post(f"{BACKEND_URL}/utils/detect_language", json={"text": content}, headers=headers)
+    if lang.status_code == 200 and lang.json().get("lang") != "en":
+        content = translate_to_english(content, headers)
+    # 2. Try Infermedica
+    ai_message, data = get_infermedica_response(st.session_state.selected_chat_id, content, headers)
+    if not ai_message or "not configured" in ai_message.lower() or "couldn't identify" in ai_message.lower():
+        # 3. Fallback to OpenAI
+        ai_message = get_openai_response(content, headers)
+        requests.post(f"{BACKEND_URL}/chats/{st.session_state.selected_chat_id}/message", json={"content": ai_message, "sender": "ai"}, headers=headers)
+    # Store last AI message for TTS
+    st.session_state.last_ai_message = ai_message
+
+# New: Unified message handler for files
+
+def handle_file_message(file, headers):
+    if not st.session_state.selected_chat_id:
+        st.error("No chat selected")
+        return
+    # 1. Extract text from file
+    text = extract_text_from_file(file, headers)
+    if not text:
+        st.error("Could not extract text from file.")
+        return
+    # 2. Process as text
+    handle_user_message(text, headers)

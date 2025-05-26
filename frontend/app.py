@@ -12,7 +12,7 @@ from datetime import datetime
 
 # Load environment variables
 load_dotenv(os.path.join(os.path.dirname(__file__), '../.env'))
-BACKEND_URL = os.getenv('BACKEND_URL', 'http://127.0.0.1:5000/api')
+BACKEND_URL = "http://127.0.0.1:5000/api"
 
 # Configure the Streamlit page
 st.set_page_config(
@@ -21,9 +21,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
-# Backend API URL
-BACKEND_URL = "http://127.0.0.1:5000/api"
 
 # Initialize session state
 if 'current_page' not in st.session_state:

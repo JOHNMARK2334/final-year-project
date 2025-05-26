@@ -13,13 +13,16 @@ def render(on_start_checkup):
                 <p style="margin-top: 1rem; color: #dbeafe; font-size: 1.2rem; max-width: 600px;">
                     Check your symptoms, get instant health insights, and receive guidance on next steps, all powered by advanced medical AI.
                 </p>
-                <div style="margin-top: 2rem; display: flex; gap: 1rem;">
-                    <button onclick="window.location.href='/?page=chat'" style="padding: 0.75rem 1.5rem; background: white; color: #1d4ed8; font-weight: 600; border: none; border-radius: 0.5rem;">Start Symptom Check →</button>
-                    <button style="padding: 0.75rem 1.5rem; background: rgba(30, 64, 175, 0.6); color: white; font-weight: 600; border: none; border-radius: 0.5rem;">Learn More ↗</button>
-                </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
+    st.write("")
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        if st.button("Start Symptom Check →", key="start_checkup_btn", use_container_width=True):
+            on_start_checkup()
+    with col2:
+        st.button("Learn More ↗", key="learn_more_btn", use_container_width=True)
 
     # ---------- Features Section ----------
     st.markdown("""
