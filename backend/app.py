@@ -158,7 +158,8 @@ def patch_chat(user_id, chat_id):
 def send_message(chat_id):
     try:
         chat = Chat.query.get_or_404(chat_id)
-        if chat.user_id != get_jwt_identity():
+        user_id = str(get_jwt_identity())
+        if str(chat.user_id) != user_id:
             return jsonify({"error": "Unauthorized"}), 403
             
         data = request.get_json()
@@ -166,6 +167,10 @@ def send_message(chat_id):
         context = data.get('context', [])
         answers_dict = data.get('answers')
         callback = data.get('callback')
+        
+        logging.info(f"Received message request - Content: {content}")
+        logging.info(f"Context: {context}")
+        logging.info(f"Answers dict: {answers_dict}")
         
         # Add user message to chat
         user_message = ChatMessage(
@@ -175,25 +180,42 @@ def send_message(chat_id):
         )
         db.session.add(user_message)
         
-        # Get AI response
-        response = infermedica_conversational_flow(
-            chat.state,
-            content,
-            context=context,
-            answers_dict=answers_dict,
-            callback=callback
-        )
+        # Initialize response variables
+        ai_message = None
+        followup = None
+        new_state = None
         
-        # Handle the response based on its type
-        if isinstance(response, dict):
-            # This is a follow-up question
-            ai_message = response.get('text', '')
-            followup = response
-        else:
-            # This is a regular message
-            ai_message = response
-            followup = None
+        try:
+            # First try to get response from OpenAI
+            openai_response = get_openai_response(content)
+            if openai_response and not any(phrase in openai_response.lower() for phrase in ["i don't know", "i'm sorry", "i am not sure", "as an ai", "i cannot"]):
+                ai_message = openai_response
+            else:
+                # If OpenAI response is not suitable, try infermedica
+                infermedica_response = infermedica_conversational_flow(
+                    chat.state or {},
+                    content,
+                    context=context,
+                    answers_dict=answers_dict,
+                    callback=callback
+                )
+                
+                if isinstance(infermedica_response, dict):
+                    ai_message = infermedica_response.get('text', '')
+                    followup = infermedica_response
+                    if 'state' in infermedica_response:
+                        new_state = infermedica_response['state']
+                else:
+                    ai_message = infermedica_response
+        except Exception as e:
+            logging.error(f"Error getting AI response: {str(e)}")
+            ai_message = "I'm having trouble processing your request right now. Please try again in a moment."
             
+        if not ai_message:
+            ai_message = "I apologize, but I couldn't generate a response. Please try again."
+            
+        logging.info(f"AI Response: {ai_message}")
+        
         # Add AI message to chat
         ai_message_obj = ChatMessage(
             chat_id=chat_id,
@@ -202,19 +224,23 @@ def send_message(chat_id):
         )
         db.session.add(ai_message_obj)
         
-        # Update chat state
-        chat.state = infermedica_conversational_flow.state
+        # Update chat state if we have a new state
+        if new_state:
+            chat.state = new_state
         chat.updated_at = datetime.datetime.now(datetime.UTC)
         db.session.commit()
         
-        return jsonify({
+        response_data = {
             'ai_message': ai_message,
             'hidden': False,
             'raw_message': ai_message,
             'followup': followup,
             'callback': callback,
             'is_question': bool(followup)
-        })
+        }
+        
+        logging.info(f"Sending response: {response_data}")
+        return jsonify(response_data)
         
     except Exception as e:
         logging.error(f"Error in send_message: {str(e)}", exc_info=True)
@@ -308,25 +334,41 @@ def generate_image():
         return jsonify({'error': str(e)}), 500
 
 # --- TTS Endpoint ---
-@app.route('/tts', methods=['POST'])
+@app.route('/api/tts', methods=['POST'])
+@jwt_required()
 def tts():
     try:
         data = request.get_json()
         text = data.get('text', '')
         if not text:
             return jsonify({'error': 'No text provided'}), 400
-        # Generate TTS audio using gTTS
-        audio_dir = os.path.join(app.root_path, 'static', 'audio')
+            
+        # Create static and audio directories if they don't exist
+        static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+        audio_dir = os.path.join(static_dir, 'audio')
         os.makedirs(audio_dir, exist_ok=True)
+        
+        # Generate unique filename
         filename = f"tts_{uuid.uuid4().hex}.mp3"
         filepath = os.path.join(audio_dir, filename)
-        tts = gTTS(text)
+        
+        # Generate TTS audio
+        tts = gTTS(text=text, lang='en', slow=False)
         tts.save(filepath)
-        audio_url = f"/static/audio/{filename}"
+        
+        # Return the full URL for the audio file
+        audio_url = f"{request.host_url}api/static/audio/{filename}"
         return jsonify({'audio_url': audio_url})
+        
     except Exception as e:
-        print("TTS error:", e)
+        logging.error(f"TTS error: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+# Serve static files
+@app.route('/api/static/<path:filename>')
+def serve_static(filename):
+    static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+    return send_from_directory(static_dir, filename)
 
 if __name__ == "__main__":
     app.run(debug=True)

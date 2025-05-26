@@ -1,48 +1,33 @@
-import openai
 import os
+from openai import OpenAI
 import logging
+from dotenv import load_dotenv
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    logging.error("OPENAI_API_KEY is not set in environment variables.")
+# Load environment variables from .env file
+env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+load_dotenv(dotenv_path=env_path)
 
-client = openai.OpenAI(api_key = OPENAI_API_KEY)
+# Get API key from environment
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    logging.error("OPENAI_API_KEY not found in environment variables")
+    raise ValueError("OPENAI_API_KEY environment variable is not set")
+
+# Initialize OpenAI client
+client = OpenAI(api_key=api_key)
 
 def get_openai_response(prompt):
     try:
-        if not OPENAI_API_KEY:
-            return "OpenAI API is not configured. Please contact the administrator."
-        
-        # Handle empty or greeting prompts
-        if not prompt.strip() or prompt.lower().strip() in ['hello', 'hi', 'hey']:
-            return "Hello! I'm your health assistant. Please describe your symptoms so I can help you better."
-        
         response = client.chat.completions.create(
-            model="gpt-4.1-2025-04-14",
+            model="gpt-3.5-turbo",
             messages=[
-                {
-                    "role": "system",
-                    "content": """You are an AI medical assistant. Provide general health information but always:
-                    1. Clarify you're not a doctor
-                    2. Diagnose or prescribe treatments if necessary
-                    3. Recommend consulting a healthcare professional
-                    4. For emergencies, advise immediate medical attention"""
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                {"role": "system", "content": "You are a helpful medical assistant. Provide informative and helpful responses about health and medical topics. Always maintain a professional and caring tone. If you're unsure about something, acknowledge the limitations and suggest consulting a healthcare professional."},
+                {"role": "user", "content": prompt}
             ],
             temperature=0.7,
-            max_tokens=256
+            max_tokens=500
         )
-        
-        # Add disclaimer if not already present
-        response_text = response.choices[0].message.content
-        if "I'm not a doctor" not in response_text and "consult a healthcare professional" not in response_text:
-            response_text += "\n\nRemember, I'm an AI assistant and not a doctor. For proper medical advice, please consult a healthcare professional."
-            
-        return response_text
-        
+        return response.choices[0].message.content.strip()
     except Exception as e:
-        return f"I encountered an error processing your request. Please try again. Error: {str(e)}"
+        logging.error(f"OpenAI API error: {str(e)}")
+        return None
