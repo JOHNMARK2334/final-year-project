@@ -184,7 +184,7 @@ def get_tts_audio(text, headers):
         return resp.json().get("audio_url", None)
     return None
 
-def render(on_start_diagnosis=lambda: set_page('wizard'), backend_url=BACKEND_URL, auth_token=st.session_state.get('auth_token', None)):
+def render(on_start_diagnosis=None, backend_url=BACKEND_URL, auth_token=st.session_state.get('auth_token', None)):
     st.markdown(CHATGPT_CSS, unsafe_allow_html=True)
     headers = {
         "Authorization": f"Bearer {auth_token}",
@@ -202,17 +202,28 @@ def render(on_start_diagnosis=lambda: set_page('wizard'), backend_url=BACKEND_UR
         st.session_state.user_input = ""
     if 'should_clear_input' not in st.session_state:
         st.session_state.should_clear_input = False
+    if 'last_followup' not in st.session_state:
+        st.session_state.last_followup = None
+    if 'last_followup_time' not in st.session_state:
+        st.session_state.last_followup_time = None
+    if 'current_callback' not in st.session_state:
+        st.session_state.current_callback = None
+    if 'answered_questions' not in st.session_state:
+        st.session_state.answered_questions = {}
+    if 'conversation_context' not in st.session_state:
+        st.session_state.conversation_context = []
+    if 'current_question_id' not in st.session_state:
+        st.session_state.current_question_id = None
 
     # Clear input if needed
     if st.session_state.should_clear_input:
         st.session_state.user_input = ""
         st.session_state.should_clear_input = False
 
-    # Sidebar
+    # Sidebar with chat history only
     with st.sidebar:
         st.markdown("""
         <div class="sidebar">
-            <button class="new-chat-btn">+ New Chat</button>
             <div class="chat-history">
         """, unsafe_allow_html=True)
         
@@ -220,7 +231,7 @@ def render(on_start_diagnosis=lambda: set_page('wizard'), backend_url=BACKEND_UR
             try:
                 resp = requests.post(
                     f"{backend_url}/chats",
-                    headers=headers  # <-- Only headers, no json body!
+                    headers=headers
                 )
                 if resp.status_code == 200:
                     st.session_state.selected_chat_id = resp.json().get('id')
@@ -232,7 +243,6 @@ def render(on_start_diagnosis=lambda: set_page('wizard'), backend_url=BACKEND_UR
 
         try:
             chats = requests.get(f"{backend_url}/chats", headers=headers).json()
-            # If the backend returns an error as a dict or a string, handle it
             if isinstance(chats, dict) and chats.get("error"):
                 st.error(f"Backend error: {chats['error']}")
                 chats = []
@@ -245,7 +255,7 @@ def render(on_start_diagnosis=lambda: set_page('wizard'), backend_url=BACKEND_UR
 
         for chat in sorted(chats, key=lambda c: c.get("created_at", ""), reverse=True):
             title = chat.get('title', 'New Chat')
-            date = datetime.fromisoformat(chat['created_at']).strftime('%b %d') if chat.get('created_at') else ""
+            date = datetime.fromisoformat(chat['created_at']).strftime('%b %d') if chat.get("created_at") else ""
             if st.button(f"{title}\n{date}", key=f"chat_{chat.get('id')}"):
                 st.session_state.selected_chat_id = chat.get('id')
                 st.rerun()
@@ -312,7 +322,7 @@ def render(on_start_diagnosis=lambda: set_page('wizard'), backend_url=BACKEND_UR
                 handle_user_message(followup_answer, headers)
                 st.session_state.last_followup_question = None
                 st.session_state.last_followup_time = None
-                st.experimental_rerun()
+                st.rerun()
         # Store the last follow-up question and its time in session state
         st.session_state.last_followup_question = last_ai_message
         st.session_state.last_followup_time = last_ai_time
@@ -323,6 +333,16 @@ def render(on_start_diagnosis=lambda: set_page('wizard'), backend_url=BACKEND_UR
     # --- Advanced follow-up UI (always shown if present) ---
     followup = getattr(st.session_state, 'last_followup', None)
     if followup:
+        # Generate a unique ID for this question
+        question_id = followup.get('id', followup.get('text', ''))
+        
+        # Check if this question has already been answered
+        if question_id in st.session_state.answered_questions:
+            # Skip this question as it's already been answered
+            st.session_state.last_followup = None
+            st.rerun()
+            return
+
         st.markdown(
             f"""
             <div style='background:#fffbe6;border:2px solid #fbbf24;padding:1.5rem 1rem;border-radius:10px;margin:1rem 0;box-shadow:0 2px 8px #fbbf2440;'>
@@ -332,36 +352,66 @@ def render(on_start_diagnosis=lambda: set_page('wizard'), backend_url=BACKEND_UR
             """,
             unsafe_allow_html=True
         )
-        with st.form(key="followup_form_mc"):
+        
+        # Create a form for the follow-up question
+        with st.form(key=f"followup_form_{question_id}"):
+            # For group questions
             answers = []
             answers_dict = {}
             valid = True
-            for idx, item in enumerate(followup.get('items', [])):
+            
+            # Get the items from the follow-up question
+            items = followup.get('items', [])
+            if not items and followup.get('text'):
+                # If no items but we have text, create a single item
+                items = [{
+                    "text": followup['text'],
+                    "type": "single",
+                    "choices": ["Yes", "No", "Don't know"]
+                }]
+            
+            for idx, item in enumerate(items):
                 input_type = item.get('type', 'single')
-                label = item['name'] or f"Question {idx+1}"
-                if input_type == 'single' and item['choices']:
-                    answer = st.radio(label, item['choices'], key=f"followup_choice_{idx}")
-                elif input_type == 'multi' and item['choices']:
-                    answer = st.multiselect(label, item['choices'], key=f"followup_multi_{idx}")
+                label = item.get('text', f"Question {idx+1}")
+                choices = item.get('choices', ["Yes", "No", "Don't know"])
+                
+                if input_type == 'single':
+                    answer = st.radio(label, choices, key=f"followup_choice_{idx}")
+                elif input_type == 'multi':
+                    answer = st.multiselect(label, choices, key=f"followup_multi_{idx}")
                 elif input_type == 'number':
                     answer = st.number_input(label, key=f"followup_num_{idx}")
                 elif input_type == 'date':
                     answer = st.date_input(label, key=f"followup_date_{idx}")
                 else:
                     answer = st.text_input(label, key=f"followup_text_{idx}")
+                
                 if (input_type == 'multi' and not answer) or (input_type != 'multi' and not answer):
                     valid = False
                 answers.append(answer)
                 answers_dict[label] = answer
+            
             submitted = st.form_submit_button("Submit")
             if submitted:
                 if not valid:
                     st.warning("Please answer all follow-up questions before submitting.")
                 else:
+                    # Store the question and its answers
+                    st.session_state.answered_questions[question_id] = {
+                        'question': followup['text'],
+                        'answers': answers_dict,
+                        'timestamp': datetime.now().isoformat()
+                    }
+                    # Add to conversation context
+                    st.session_state.conversation_context.append({
+                        'question_id': question_id,
+                        'question': followup['text'],
+                        'answers': answers_dict
+                    })
                     handle_user_message("; ".join([str(a) for a in answers]), headers, answers_dict=answers_dict)
                     st.session_state.last_followup = None
                     st.session_state.should_clear_input = True
-                    st.experimental_rerun()
+                    st.rerun()
     else:
         # Only show the text input if there is no follow-up
         if not st.session_state.last_followup:
@@ -378,7 +428,7 @@ def render(on_start_diagnosis=lambda: set_page('wizard'), backend_url=BACKEND_UR
                     if st.session_state.user_input.strip():
                         handle_user_message(st.session_state.user_input, headers)
                         st.session_state.should_clear_input = True
-                        st.experimental_rerun()
+                        st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
     file_col, voice_col = st.columns([1, 1])
@@ -438,28 +488,13 @@ def handle_user_message(content, headers, answers_dict=None, callback=None):
         st.error("No chat selected")
         return
 
-    # Detect image generation prompt
-    if any(kw in content.lower() for kw in ["generate an image", "create an image", "draw an image", "make an image"]):
-        image_url = generate_image(content, headers)
-        if image_url:
-            if "generated_images" not in st.session_state:
-                st.session_state.generated_images = []
-            st.session_state.generated_images.append(image_url)
-            st.success("Image generated!")
-        else:
-            st.error("Failed to generate image.")
-        return
-
-    # 1. Translate if not English
-    lang = requests.post(f"{BACKEND_URL}/utils/detect_language", json={"text": content}, headers=headers)
-    if lang.status_code == 200 and lang.json().get("lang") != "en":
-        content = translate_to_english(content, headers)
-
-    # 2. Try Infermedica with callback
+    # Add context to the payload
     payload = {
         "content": content,
         "answers": answers_dict,
-        "callback": callback
+        "callback": callback,
+        "context": st.session_state.conversation_context,
+        "answered_questions": list(st.session_state.answered_questions.keys())
     }
     
     resp = requests.post(
@@ -475,15 +510,41 @@ def handle_user_message(content, headers, answers_dict=None, callback=None):
         followup = data.get("followup")
         callback = data.get("callback")
         
+        # Check if this is a new question
+        if followup:
+            question_id = followup.get("id")
+            if question_id in st.session_state.answered_questions:
+                # Skip this question as it's already been answered
+                followup = None
+            else:
+                # Store the question ID in answered questions
+                st.session_state.answered_questions[question_id] = {
+                    "question": followup["text"],
+                    "timestamp": datetime.now().isoformat()
+                }
+        
         # Store followup and callback in session state
         st.session_state.last_followup = followup
         st.session_state.current_callback = callback
         
-        if hidden:
-            st.session_state.last_ai_message = ""
-            return
+        if not hidden and ai_message:
+            # Display the AI message
+            st.markdown(f"""
+            <div class="chat-message">
+                <div class="message">
+                    <div class="avatar">🤖</div>
+                    <div>{ai_message}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
             
-        st.session_state.last_ai_message = ai_message
+            # Add TTS button for AI message
+            if st.button(f"🔊 Play AI Voice", key=f"tts_{datetime.now().isoformat()}"):
+                audio_url = get_tts_audio(ai_message, headers)
+                if audio_url:
+                    st.audio(audio_url)
+                else:
+                    st.error("Failed to generate voice output.")
         
         # If followup, do not show input box, let the followup form handle it
         if followup:
@@ -496,23 +557,49 @@ def handle_user_message(content, headers, answers_dict=None, callback=None):
                 json={"content": ai_message, "sender": "ai", "callback": callback},
                 headers=headers
             )
-        st.session_state.last_ai_message = ai_message
+            # Display the fallback message
+            st.markdown(f"""
+            <div class="chat-message">
+                <div class="message">
+                    <div class="avatar">🤖</div>
+                    <div>{ai_message}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
         st.session_state.should_clear_input = True
+        st.rerun()
     else:
         st.error(f"Failed to send message: {resp.text}")
 
-# Update the followup form handling
 def handle_followup_submission(answers_dict, headers):
     if not st.session_state.selected_chat_id:
         st.error("No chat selected")
         return
         
+    # Map frontend answers to Infermedica choice_ids
+    mapped_answers = {}
+    for key, value in answers_dict.items():
+        if isinstance(value, str):
+            if value.lower() == "yes":
+                mapped_answers[key] = "present"
+            elif value.lower() == "no":
+                mapped_answers[key] = "absent"
+            elif value.lower() == "don't know":
+                mapped_answers[key] = "unknown"
+            else:
+                mapped_answers[key] = value
+        elif isinstance(value, list):
+            mapped_answers[key] = [v.lower() for v in value]
+        else:
+            mapped_answers[key] = value
+    
     callback = st.session_state.current_callback
-    handle_user_message("", headers, answers_dict=answers_dict, callback=callback)
+    handle_user_message("", headers, answers_dict=mapped_answers, callback=callback)
     st.session_state.last_followup = None
     st.session_state.current_callback = None
     st.session_state.should_clear_input = True
-    st.experimental_rerun()
+    st.rerun()
 
 # New: Unified message handler for files
 

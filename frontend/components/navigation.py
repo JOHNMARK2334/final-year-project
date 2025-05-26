@@ -25,7 +25,7 @@ def render(on_navigate, current_page, on_logout=None):  # Make on_logout optiona
         with col_symptom:
             st.button('Symptom Checker',
                      key='nav_chat',
-                     on_click=lambda: on_navigate('chat'),
+                     on_click=lambda: on_navigate('wizard'),
                      use_container_width=True)
     
     with col3:

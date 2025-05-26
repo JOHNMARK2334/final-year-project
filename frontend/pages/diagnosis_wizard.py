@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
+import components.navigation as navigation
 
 def get_symptom_ids(symptom_text, headers):
     symptoms = []
@@ -47,7 +48,25 @@ def get_symptom_ids(symptom_text, headers):
 
     return symptoms
 
-def main():
+def render(backend_url=None, auth_token=None, on_navigate=None):
+    # Add navigation bar
+    navigation.render(
+        on_navigate=on_navigate,
+        current_page='wizard',
+        on_logout=None
+    )
+    
+    # Set up headers for API calls
+    headers = {
+        "App-Id": st.secrets["INFERMEDICA_APP_ID"] if "INFERMEDICA_APP_ID" in st.secrets else None,
+        "App-Key": st.secrets["INFERMEDICA_APP_KEY"] if "INFERMEDICA_APP_KEY" in st.secrets else None,
+        "Content-Type": "application/json"
+    }
+    
+    # Call main function with the headers
+    main(headers)
+
+def main(headers=None):
     st.title("Medical Diagnosis Wizard")
 
     if 'current_step' not in st.session_state:
@@ -138,11 +157,6 @@ def main():
         st.subheader("Assessment Results")
         st.markdown("#### Potential Conditions (powered by Infermedica)")
 
-        headers = {
-            "App-Id": st.secrets["INFERMEDICA_APP_ID"] if "INFERMEDICA_APP_ID" in st.secrets else None,
-            "App-Key": st.secrets["INFERMEDICA_APP_KEY"] if "INFERMEDICA_APP_KEY" in st.secrets else None,
-            "Content-Type": "application/json"
-        }
         if not headers["App-Id"] or not headers["App-Key"]:
             st.warning("Infermedica API keys are not set in Streamlit secrets. Please add them to .streamlit/secrets.toml.")
         # Ensure gender is either 'male' or 'female'

@@ -155,70 +155,70 @@ def patch_chat(user_id, chat_id):
 # --- Send Message Endpoint ---
 @app.route('/api/chats/<int:chat_id>/message', methods=['POST'])
 @jwt_required()
-@jwt_identity_to_int
-def chat_message(user_id, chat_id):
-    data = request.get_json()
-    user_message = data.get("content")
-    answers_dict = data.get("answers")
-    callback = data.get("callback")  # New: Support for callback function name
-    chat = Chat.query.get_or_404(chat_id)
-    if chat.user_id != user_id:
-        return jsonify({"error": "Unauthorized"}), 403
-
-    # Save user message
-    msg = ChatMessage(chat_id=chat.id, sender="user", content=user_message)
-    db.session.add(msg)
-    db.session.commit()
-
-    # Fetch last 10 messages for context
-    messages = ChatMessage.query.filter_by(chat_id=chat.id).order_by(ChatMessage.created_at.desc()).limit(10).all()
-    messages = list(reversed(messages))  # Oldest first
-    context = [m.content for m in messages if m.sender == "user" or m.sender == "ai"]
-
-    # Conversational logic with Infermedica, pass context and answers_dict
-    state = chat.state or {}
-    ai_message = infermedica_conversational_flow(state, user_message, context=context, answers_dict=answers_dict, callback=callback)
-    fallback_phrases = [
-        "I don't know",
-        "I'm sorry",
-        "I am not sure",
-        "As an AI language model",
-        "I cannot answer"
-    ]
-    hidden = any(phrase.lower() in ai_message.lower() for phrase in fallback_phrases)
-    
-    # Store the AI message in the database
-    ai_msg = ChatMessage(chat_id=chat.id, sender="ai", content=ai_message)
-    db.session.add(ai_msg)
-
-    # Persist updated state in the chat record
-    chat.state = state
-    chat.updated_at = datetime.datetime.utcnow()
-    db.session.commit()
-
-    # If the state has a last_question, return it as a structured followup
-    followup = None
-    if state.get("last_question"):
-        q = state["last_question"]
-        followup = {
-            "text": q.get("text"),
-            "items": [
-                {
-                    "name": item.get("name", ""),
-                    "choices": [c["label"] for c in item.get("choices", [])],
-                    "type": item.get("type", "single")
-                } for item in q.get("items", [])
-            ],
-            "callback": callback  # Pass the callback to the frontend
-        }
-
-    return jsonify({
-        "ai_message": "" if hidden else ai_message,
-        "hidden": hidden,
-        "raw_message": ai_message,
-        "followup": followup,  # always present if last_question is set
-        "callback": callback  # Return the callback for frontend state management
-    })
+def send_message(chat_id):
+    try:
+        chat = Chat.query.get_or_404(chat_id)
+        if chat.user_id != get_jwt_identity():
+            return jsonify({"error": "Unauthorized"}), 403
+            
+        data = request.get_json()
+        content = data.get('content', '')
+        context = data.get('context', [])
+        answers_dict = data.get('answers')
+        callback = data.get('callback')
+        
+        # Add user message to chat
+        user_message = ChatMessage(
+            chat_id=chat_id,
+            content=content,
+            sender='user'
+        )
+        db.session.add(user_message)
+        
+        # Get AI response
+        response = infermedica_conversational_flow(
+            chat.state,
+            content,
+            context=context,
+            answers_dict=answers_dict,
+            callback=callback
+        )
+        
+        # Handle the response based on its type
+        if isinstance(response, dict):
+            # This is a follow-up question
+            ai_message = response.get('text', '')
+            followup = response
+        else:
+            # This is a regular message
+            ai_message = response
+            followup = None
+            
+        # Add AI message to chat
+        ai_message_obj = ChatMessage(
+            chat_id=chat_id,
+            content=ai_message,
+            sender='ai'
+        )
+        db.session.add(ai_message_obj)
+        
+        # Update chat state
+        chat.state = infermedica_conversational_flow.state
+        chat.updated_at = datetime.datetime.now(datetime.UTC)
+        db.session.commit()
+        
+        return jsonify({
+            'ai_message': ai_message,
+            'hidden': False,
+            'raw_message': ai_message,
+            'followup': followup,
+            'callback': callback,
+            'is_question': bool(followup)
+        })
+        
+    except Exception as e:
+        logging.error(f"Error in send_message: {str(e)}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 # --- Health Check Endpoint ---
 @app.route('/api/health', methods=['GET'])

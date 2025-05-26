@@ -84,7 +84,14 @@ def logout():
 # Main app logic
 if st.session_state.auth_token and st.session_state.user_info:
     st.write(f"Welcome, {st.session_state.user_info['username']}!")
-    navigation.render(on_navigate=set_page, current_page=st.session_state.current_page, on_logout=logout)
+    
+    # Show navigation only for home and chat pages
+    if st.session_state.current_page in ['home', 'chat']:
+        navigation.render(
+            on_navigate=set_page,
+            current_page=st.session_state.current_page,
+            on_logout=logout
+        )
     
     if st.session_state.current_page == 'home':
         home_page.render(lambda: set_page('chat'))
@@ -97,7 +104,8 @@ if st.session_state.auth_token and st.session_state.user_info:
     elif st.session_state.current_page == 'wizard':
         diagnosis_wizard.render(
             backend_url=BACKEND_URL,
-            auth_token=st.session_state.auth_token
+            auth_token=st.session_state.auth_token,
+            on_navigate=set_page
         )
     else:
         home_page.render(lambda: set_page('chat'))
