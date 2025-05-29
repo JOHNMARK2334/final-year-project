@@ -19,7 +19,7 @@ SpeechRecognition>=3.10.4
 pyOpenSSL>=25.0.0
 httpx>=0.28.0
 httpcore>=1.0.7
-requests>=2.33.0
+requests>=2.27.0
 
 # AI/ML libraries
 openai>=1.54.0
