@@ -57,7 +57,7 @@ pandas
 pdf2image                         
 pillow                            
 pip                               
-protobuf                          
+protobuf==4.25.1                          
 psycopg2-binary                   
 pyarrow                           
 pycparser                         
@@ -90,7 +90,7 @@ SpeechRecognition
 SQLAlchemy                        
 standard-aifc                     
 standard-chunk                    
-streamlit                         
+streamlit==1.28.0                         
 streamlit-realtime-audio-recorder 
 streamlit-webrtc                  
 sympy                             
