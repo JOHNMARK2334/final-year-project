@@ -4,10 +4,10 @@ import sys
 from dotenv import load_dotenv
 import requests
 import components.navigation as navigation
-from used import home_page
-from used import chat_page
-from used import diagnosis_wizard
-from used import auth_page
+import pages.home_page as home_page
+import pages.chat_page as chat_page
+import pages.diagnosis_wizard as diagnosis_wizard
+import pages.auth_page as auth_page
 from datetime import datetime
 
 # Load environment variables
@@ -48,7 +48,7 @@ def login(username, password):
             }
             st.success("Login successful!")
             st.write("Token:", st.session_state.auth_token)
-            set_page('chat')
+            set_page('home')
             st.rerun()  # Optionally rerun to update UI
             return True
         else:
@@ -67,7 +67,7 @@ def register(username, password, email):
         )
         if response.status_code == 201:
             st.success("Registration successful! Please login.")
-            set_page('chat')
+            set_page('login')
             return True
         else:
             st.error(response.json().get('error', 'Registration failed'))
@@ -82,30 +82,32 @@ def logout():
     set_page('login')
 
 # Main app logic
-if st.session_state.current_page == 'home':
-    home_page.render(lambda: set_page('chat'))
-elif st.session_state.current_page == 'chat':
-    if st.session_state.auth_token and st.session_state.user_info:
+if st.session_state.auth_token and st.session_state.user_info:
+    st.write(f"Welcome, {st.session_state.user_info['username']}!")
+    
+    # Show navigation only for home and chat pages
+    if st.session_state.current_page in ['home', 'chat']:
         navigation.render(
             on_navigate=set_page,
             current_page=st.session_state.current_page,
-            on_logout=logout,
-            key_suffix='app_global_nav'
+            on_logout=logout
         )
+    
+    if st.session_state.current_page == 'home':
+        home_page.render(lambda: set_page('chat'))
+    elif st.session_state.current_page == 'chat':
         chat_page.render(
+            backend_url=BACKEND_URL,
+            on_start_diagnosis=lambda: set_page('wizard'),
             auth_token=st.session_state.auth_token
         )
+    elif st.session_state.current_page == 'wizard':
+        diagnosis_wizard.render(
+            backend_url=BACKEND_URL,
+            auth_token=st.session_state.auth_token,
+            on_navigate=set_page
+        )
     else:
-        set_page('login')
-        st.rerun()
-elif st.session_state.current_page == 'wizard':
-    diagnosis_wizard.render(
-        backend_url=BACKEND_URL,
-        auth_token=st.session_state.auth_token,
-        on_navigate=set_page
-    )
-elif st.session_state.current_page == 'login':
-    auth_page.render(login, register)
+        home_page.render(lambda: set_page('chat'))
 else:
-    set_page('home')
-    st.rerun()
+    auth_page.render(login, register)

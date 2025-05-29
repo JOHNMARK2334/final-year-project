@@ -13,4 +13,5 @@ def render():
         type=["png", "jpg", "jpeg", "pdf", "doc", "docx"],
         label_visibility="collapsed"
     )
+    
     return uploaded_files
