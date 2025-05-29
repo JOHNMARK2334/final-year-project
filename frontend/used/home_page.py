@@ -1,10 +1,11 @@
 import streamlit as st
-import components.navigation as navigation
 
 def render(on_start_checkup):
-    # Initialize session state for checkup trigger
-    if "checkup_triggered" not in st.session_state:
-        st.session_state.checkup_triggered = False
+    query_params = st.query_params # Replaced st.experimental_get_query_params
+    if query_params.get("page_action") == "start_checkup_home": # Adjusted to check for string, not list
+        st.query_params.clear()  # Replaced st.experimental_set_query_params()
+        on_start_checkup()
+        # app.py's set_page (called by on_start_checkup) will handle st.rerun()
 
     # Apply custom CSS (remove navbar styles and references)
     st.markdown("""
@@ -44,18 +45,14 @@ def render(on_start_checkup):
         }
 
         /* Remove Gaps Between Sections */
-        .hero-section, .features-section, .stats-section, .testimonials-section, .contact-section {
-            margin: 0 !important;
-            padding: 2.5rem 0 !important;
-        }
-        footer {
-            margin: 0 !important;
-            padding: clamp(1rem, 2vw, 1.5rem) !important;
+        .hero-section, .features-section, .stats-section, .testimonials-section, 
+        .contact-section, footer {
+            margin: 0 !important; /* Keep this to prevent external margins */
         }
 
         /* Animation Keyframes */
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
+            from { opacity: 0; transform: translateY(20px); } /* Kept for reference, but animations using it will be removed */
             to { opacity: 1; transform: translateY(0); }
         }
         @keyframes pulse {
@@ -102,13 +99,6 @@ def render(on_start_checkup):
             }
         }
 
-        /* Container for Centered Content */
-        .container {
-            max-width: min(90vw, 1920px);
-            margin: 0 auto;
-            padding: 0 clamp(8px, 2vw, 16px);
-        }
-
         /* Hero Section */
         .hero-section {
             background: linear-gradient(to right, #3b82f6, #1e40af);
@@ -131,7 +121,8 @@ def render(on_start_checkup):
         }
         .hero-content {
             z-index: 1;
-            animation: fadeInUp 1s ease-in;
+            /* animation: fadeInUp 1s ease-in; */ /* Animation removed */
+            opacity: 1; /* Ensure visible */
         }
         .hero-section h1 {
             font-size: clamp(1.5rem, 5vw, 3.5rem);
@@ -140,7 +131,7 @@ def render(on_start_checkup):
             margin-bottom: clamp(0.5rem, 2vw, 1rem);
         }
         .hero-section p {
-            color: #dbeafe;
+            color: #f0f0f0; /* Text color changed to light gray for better contrast */
             font-size: clamp(0.9rem, 2.5vw, 1.2rem);
             max-width: 600px;
             margin: 0 auto clamp(1rem, 2vw, 2rem);
@@ -200,12 +191,12 @@ def render(on_start_checkup):
 
         /* Features Section */
         .features-section {
-            padding: clamp(2rem, 5vw, 4rem) clamp(0.5rem, 2vw, 1rem);
+            padding: clamp(3rem, 6vw, 5rem) clamp(1rem, 3vw, 2rem); /* Updated padding */
             text-align: center;
-            background: #f9fafb;
+            background: #f9fafb; /* Light background, black text will be fine */
         }
         .features-section h2 {
-            color: #2563eb;
+            color: black; /* Text color changed */
             text-transform: uppercase;
             font-weight: 600;
             font-size: clamp(0.8rem, 2vw, 1.2rem);
@@ -215,11 +206,12 @@ def render(on_start_checkup):
             font-size: clamp(1.2rem, 4vw, 2rem);
             font-weight: 800;
             margin-top: 0.5rem;
+            color: black; /* Text color changed */
         }
         .features-section p {
             max-width: 700px;
             margin: 1rem auto;
-            color: #6b7280;
+            color: black; /* Text color changed */
             font-size: clamp(0.8rem, 2vw, 1rem);
         }
         .features-grid {
@@ -238,10 +230,10 @@ def render(on_start_checkup):
             text-align: center;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             transition: transform 0.3s, box-shadow 0.3s;
-            opacity: 0;
+            opacity: 1; /* Changed from 0 to 1 */
         }
         .feature-card.visible {
-            animation: fadeInUp 0.5s ease-in forwards;
+            /* animation: fadeInUp 0.5s ease-in forwards; */ /* Animation removed */
         }
         .feature-card:hover {
             transform: translateY(-5px);
@@ -259,23 +251,29 @@ def render(on_start_checkup):
         .feature-card h4 {
             font-size: clamp(0.9rem, 2.5vw, 1.25rem);
             margin: 0.5rem 0;
+            color: black; /* Text color changed */
+        }
+        /* Assuming feature-card might have a p tag directly */
+        .feature-card p {
+            color: black; /* Text color changed */
         }
 
         /* Stats Section */
         .stats-section {
-            background: linear-gradient(to right, #1e40af, #3b82f6);
-            color: #fff;
-            padding: clamp(2rem, 5vw, 4rem) clamp(0.5rem, 2vw, 1rem);
+            background: linear-gradient(to right, #1e40af, #3b82f6); /* Dark background */
+            color: #f0f0f0; /* Default text color for section changed to light gray */
+            padding: clamp(3rem, 6vw, 5rem) clamp(1rem, 3vw, 2rem); /* Updated padding */
             text-align: center;
         }
         .stats-section h2 {
             font-size: clamp(1.2rem, 4vw, 2rem);
             font-weight: 800;
+            color: #fff; /* Text color changed to white */
         }
         .stats-section p {
             margin-top: 1rem;
             font-size: clamp(0.8rem, 2vw, 1.1rem);
-            color: #dbeafe;
+            color: #f0f0f0; /* Text color changed to light gray */
         }
         .stats-grid {
             display: grid;
@@ -287,12 +285,12 @@ def render(on_start_checkup):
         .stats-card {
             text-align: center;
             padding: clamp(0.5rem, 2vw, 1rem);
-            opacity: 0;
+            opacity: 1; /* Changed from 0 to 1 */
             transition: transform 0.2s;
         }
         .stats-card.visible {
-            animation: fadeInUp 0.5s ease-in forwards;
-            animation-delay: 0.2s;
+            /* animation: fadeInUp 0.5s ease-in forwards; */ /* Animation removed */
+            /* animation-delay: 0.2s; */ /* No longer needed */
         }
         .stats-card:hover {
             transform: scale(1.05);
@@ -303,16 +301,21 @@ def render(on_start_checkup):
         .stats-card h3 {
             font-size: clamp(1rem, 3vw, 1.8rem);
             font-weight: bold;
+            color: #fff; /* Text color changed to white */
+        }
+        /* Assuming stats-card has a p tag directly for its description */
+        .stats-card p {
+            color: #f0f0f0; /* Text color changed to light gray */
         }
 
         /* Testimonials Section */
         .testimonials-section {
-            padding: clamp(2rem, 5vw, 4rem) clamp(0.5rem, 2vw, 1rem);
-            background: #f0f4ff;
+            padding: clamp(3rem, 6vw, 5rem) clamp(1rem, 3vw, 2rem); /* Updated padding */
+            background: #f0f4ff; /* Light background, black text will be fine */
             text-align: center;
         }
         .testimonials-section h2 {
-            color: #2563eb;
+            color: black; /* Text color changed */
             text-transform: uppercase;
             font-weight: 600;
             font-size: clamp(0.8rem, 2vw, 1.2rem);
@@ -322,6 +325,7 @@ def render(on_start_checkup):
             font-size: clamp(1.2rem, 4vw, 2rem);
             font-weight: 800;
             margin-top: 0.5rem;
+            color: black; /* Text color changed */
         }
         .testimonials-grid {
             margin-top: clamp(1rem, 3vw, 2rem);
@@ -338,47 +342,49 @@ def render(on_start_checkup):
             max-width: 320px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             transition: transform 0.3s;
-            opacity: 0;
+            opacity: 1; /* Changed from 0 to 1 */
         }
         .testimonial.visible {
-            animation: fadeInUp 0.5s ease-in forwards;
+            /* animation: fadeInUp 0.5s ease-in forwards; */ /* Animation removed */
         }
-        .testimonial:nth-child(1).visible { animation-delay: 0.1s; }
-        .testimonial:nth-child(2).visible { animation-delay: 0.2s; }
-        .testimonial:nth-child(3).visible { animation-delay: 0.3s; }
+        /* .testimonial:nth-child(1).visible { animation-delay: 0.1s; } */ /* No longer needed */
+        /* .testimonial:nth-child(2).visible { animation-delay: 0.2s; } */ /* No longer needed */
+        /* .testimonial:nth-child(3).visible { animation-delay: 0.3s; } */ /* No longer needed */
         .testimonial:hover {
             transform: scale(1.03);
         }
-        .testimonial p:first-child {
-            color: #374151;
+        .testimonial img { /* Added this new rule */
+            border-radius: 50%; /* Makes the image round */
+            width: 80px; /* Example size, adjust as needed */
+            height: 80px; /* Example size, adjust as needed */
+            object-fit: cover; /* Ensures the image covers the area without distortion */
+            margin-bottom: 1rem;
+        }
+        .testimonial p { /* Targeting all p tags within testimonial */
+            color: black; /* Text color changed */
             font-size: clamp(0.8rem, 2vw, 1rem);
             transition: text-shadow 0.3s;
         }
-        .testimonial:hover p:first-child {
-            animation: glow 1s infinite;
-        }
-        .testimonial img {
-            width: clamp(32px, 5vw, 40px);
-            height: clamp(32px, 5vw, 40px);
-            border-radius: 50%;
-            margin-bottom: 1rem;
+        .testimonial p[style*="font-weight: 600"] { /* Specifically target author if needed, though above should cover */
+            color: black !important; /* Ensure override if specific styles were stronger */
         }
 
         /* Contact Section */
         .contact-section {
-            padding: clamp(2rem, 5vw, 4rem) clamp(0.5rem, 2vw, 1rem);
-            background: linear-gradient(to right, #1e40af, #3b82f6);
-            color: #fff;
+            padding: clamp(3rem, 6vw, 5rem) clamp(1rem, 3vw, 2rem); /* Updated padding */
+            background: linear-gradient(to right, #1e40af, #3b82f6); /* Dark background */
+            color: #f0f0f0; /* Default text color for section changed to light gray */
             text-align: center;
         }
         .contact-section h2 {
             font-size: clamp(1.2rem, 4vw, 2rem);
             font-weight: 800;
+            color: #fff; /* Text color changed to white */
         }
         .contact-section p {
             margin-top: 1rem;
             font-size: clamp(0.8rem, 2vw, 1rem);
-            color: #dbeafe;
+            color: #f0f0f0; /* Text color changed to light gray */
         }
         .contact-form input, .contact-form textarea {
             width: 100%;
@@ -459,41 +465,22 @@ def render(on_start_checkup):
 
         /* Footer Styles */
         footer {
-            background: #1e40af;
-            color: #fff;
+            background: #1e40af; /* Dark background */
+            color: #f0f0f0; /* Text color changed to light gray */
             text-align: center;
-            padding: clamp(1rem, 2vw, 1.5rem);
+            /* padding: clamp(1.5rem, 4vw, 2.5rem) clamp(1rem, 3vw, 2rem); */ /* Updated padding REMOVED */
+            padding: 1rem; /* Adjusted to a smaller, fixed padding */
             font-size: clamp(0.8rem, 2vw, 1rem);
             opacity: 0.9;
         }
         footer p {
             margin: 0;
+            color: #f0f0f0; /* Text color changed to light gray */
         }
 
         /* Responsive Breakpoints */
         @media (max-width: 767px) {
-            .nav-menu {
-                display: none;
-                position: fixed;
-                top: clamp(3rem, 5vw, 4rem);
-                right: 0;
-                width: 70%;
-                height: 100vh;
-                background: rgba(255, 255, 255, 0.95);
-                flex-direction: column;
-                padding: 1rem;
-                box-shadow: -2px 0 4px rgba(0,0,0,0.1);
-                animation: slideIn 0.3s ease-in;
-            }
-            .nav-menu.active {
-                display: flex;
-            }
-            .nav-item {
-                margin: 0.5rem 0;
-            }
-            .hamburger {
-                display: block;
-            }
+            /* .nav-menu and .hamburger styles removed as local navbar is deleted */
             .hero-buttons {
                 flex-direction: column;
                 align-items: center;
@@ -570,28 +557,19 @@ def render(on_start_checkup):
             }
             footer {
                 font-size: clamp(0.9rem, 1.5vw, 1.2rem);
-                padding: clamp(1.5rem, 2vw, 2rem);
+                /* padding: clamp(1.5rem, 2vw, 2rem); */ /* REMOVED */
+                padding: 1rem; /* Adjusted to a smaller, fixed padding */
             }
         }
 
         /* Accessibility */
-        .cta-button:focus, .form-button:focus, .nav-link:focus {
+        .cta-button:focus, .form-button:focus { /* Removed .nav-link:focus */
             outline: 3px solid #2563eb;
             outline-offset: 2px;
         }
         </style>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     """, unsafe_allow_html=True)
-
-    # Use the shared navigation component
-    navigation.render(
-        on_navigate=lambda page: st.session_state.update(current_page=page),
-        current_page='home',
-        on_logout=lambda: st.session_state.update(auth_token=None, user_info=None, current_page='login'),
-        show_checkup=True,
-        show_symptom=True,
-        key_suffix='home_page'
-    )
 
     # Hero Section with Buttons
     st.markdown("""
@@ -601,7 +579,7 @@ def render(on_start_checkup):
                     <h1>Healthcare powered by <span style='color: #bfdbfe;'>AI</span></h1>
                     <p>Check your symptoms, get instant health insights, and receive guidance on next steps, all powered by advanced medical AI.</p>
                     <div class="hero-buttons">
-                        <a href="#" class="cta-button" id="start-checkup-hero" aria-label="Start Symptom Check" role="button">Start Checkup →</a>
+                        <a href="?page_action=start_checkup_home" class="cta-button" id="start-checkup-hero" aria-label="Start Symptom Check" role="button">Start Checkup →</a>
                         <a href="https://github.com/JOHNMARK2334/final-year-project/blob/main/Readme.md" class="cta-button" target="_blank" aria-label="Learn More" role="button">Learn More ↗</a>
                     </div>
                 </div>
@@ -618,17 +596,17 @@ def render(on_start_checkup):
                 <h3>Healthcare support at your fingertips</h3>
                 <p>Our platform uses the latest advancements in medical AI to provide accurate and personalized health information.</p>
                 <div class="features-grid">
-                    <div class="feature-card visible">
+                    <div class="feature-card">
                         <img src="https://img.icons8.com/color/48/000000/chat.png" alt="Conversational Interface Icon" loading="lazy">
                         <h4>Conversational Interface</h4>
                         <p>Natural dialogue with our AI to describe your symptoms in your own words.</p>
                     </div>
-                    <div class="feature-card visible">
+                    <div class="feature-card">
                         <img src="https://img.icons8.com/color/48/000000/search.png" alt="Symptom Analysis Icon" loading="lazy">
                         <h4>Symptom Analysis</h4>
                         <p>Advanced algorithms analyze your symptoms to provide potential causes.</p>
                     </div>
-                    <div class="feature-card visible">
+                    <div class="feature-card">
                         <img src="https://img.icons8.com/color/48/000000/medical-doctor.png" alt="Medical Expertise Icon" loading="lazy">
                         <h4>Medical Expertise</h4>
                         <p>Built on knowledge from medical professionals and clinical guidelines.</p>
@@ -645,15 +623,15 @@ def render(on_start_checkup):
                 <h2>Trusted by patients worldwide</h2>
                 <p>Our platform has helped millions of people understand their health concerns</p>
                 <div class="stats-grid">
-                    <div class="stats-card visible">
-                        <h3>5M+</h3>
+                    <div class="stats-card">
+                        <h3>5 M+</h3>
                         <p>Health assessments</p>
                     </div>
-                    <div class="stats-card visible">
-                        <h3>150+</h3>
+                    <div class="stats-card">
+                        <h3>10 +</h3>
                         <p>Countries served</p>
                     </div>
-                    <div class="stats-card visible">
+                    <div class="stats-card">
                         <h3>98%</h3>
                         <p>Satisfaction rate</p>
                     </div>
@@ -669,17 +647,17 @@ def render(on_start_checkup):
                 <h2>Testimonials</h2>
                 <h3>What our users are saying</h3>
                 <div class="testimonials-grid">
-                    <div class="testimonial visible">
+                    <div class="testimonial">
                         <img src="https://randomuser.me/api/portraits/women/1.jpg" alt="Sarah M. Avatar" loading="lazy">
                         <p>"I described my symptoms and within seconds got a detailed, helpful explanation. Amazing!"</p>
                         <p style="margin-top: 1rem; font-weight: 600; color: #1e3a8a;">— Sarah M.</p>
                     </div>
-                    <div class="testimonial visible">
+                    <div class="testimonial">
                         <img src="https://randomuser.me/api/portraits/men/2.jpg" alt="Daniel K. Avatar" loading="lazy">
                         <p>"I used this tool late at night when clinics were closed. It really calmed my anxiety."</p>
                         <p style="margin-top: 1rem; font-weight: 600; color: #1e3a8a;">— Daniel K.</p>
                     </div>
-                    <div class="testimonial visible">
+                    <div class="testimonial">
                         <img src="https://randomuser.me/api/portraits/women/3.jpg" alt="Priya R. Avatar" loading="lazy">
                         <p>"Highly recommend to anyone looking for trustworthy symptom guidance. 10/10."</p>
                         <p style="margin-top: 1rem; font-weight: 600; color: #1e3a8a;">— Priya R.</p>
@@ -750,148 +728,6 @@ def render(on_start_checkup):
     """, unsafe_allow_html=True)
 
     # JavaScript for Animations, Micro-Interactions, and Checkup Trigger
-    st.markdown("""
-        <script>
-        // Number Counter Animation
-        function animateNumber(element, start, end, suffix = '') {
-            let startTimestamp = null;
-            const step = (timestamp) => {
-                if (!startTimestamp) startTimestamp = timestamp;
-                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                const value = Math.floor(progress * (end - start) + start);
-                element.textContent = value + suffix;
-                if (progress < 1) {
-                    window.requestAnimationFrame(step);
-                }
-            };
-            window.requestAnimationFrame(step);
-        }
-
-        // JavaScript for Interactions
-        document.addEventListener('DOMContentLoaded', () => {
-            // Hamburger Menu Toggle
-            const hamburger = document.querySelector('.hamburger');
-            const navMenu = document.querySelector('.nav-menu');
-            hamburger.addEventListener('click', () => {
-                navMenu.classList.toggle('active');
-                const expanded = hamburger.getAttribute('aria-expanded') === 'true';
-                hamburger.setAttribute('aria-expanded', !expanded);
-                hamburger.textContent = expanded ? '☰' : '✕';
-            });
-
-            // Ripple Effect for Buttons
-            const buttons = document.querySelectorAll('.cta-button, .form-button, .nav-link');
-            buttons.forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const ripple = document.createElement('span');
-                    ripple.classList.add('ripple');
-                    const rect = button.getBoundingClientRect();
-                    const size = Math.max(rect.width, rect.height);
-                    ripple.style.width = ripple.style.height = size + 'px';
-                    ripple.style.left = e.clientX - rect.left - size / 2 + 'px';
-                    ripple.style.top = e.clientY - rect.top - size / 2 + 'px';
-                    button.appendChild(ripple);
-                    setTimeout(() => ripple.remove(), 600);
-                });
-            });
-
-            // Start Checkup Button Handlers
-            const startCheckupNav = document.querySelector('#start-checkup-nav');
-            const startCheckupHero = document.querySelector('#start-checkup-hero');
-            if (startCheckupNav) {
-                startCheckupNav.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    // Set session state flag
-                    fetch('/start-checkup', { method: 'POST' })
-                        .then(() => {
-                            window.__streamlit_checkup_triggered = true;
-                        });
-                });
-            }
-            if (startCheckupHero) {
-                startCheckupHero.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    // Set session state flag
-                    fetch('/start-checkup', { method: 'POST' })
-                        .then(() => {
-                            window.__streamlit_checkup_triggered = true;
-                        });
-                });
-            }
-
-            // Stats Number Animation
-            const stats = [
-                selector: '.stats-card:nth-child(1) h3', end: 5000000, suffix: '+' 
-                },
-                { selector: '.stats-card:nth-child(2) h3', end: 200, suffix: '+' },
-                { selector: '.stats-card:nth-child(3) h3', end: 98, suffix: '%' }
-            ];
-            const statsObserver = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        stats.forEach(stat => {
-                            const element = document.querySelector(stat.selector);
-                            element.parentElement.classList.add('animate-pulse', 'visible');
-                            animateNumber(element, 0, stat.end, 2000, stat.suffix);
-                        });
-                        statsObserver.disconnect();
-                    }
-                });
-            }, { threshold: 0.5 });
-            statsObserver.observe(document.querySelector('.stats-section'));
-
-            // Section and Card Animations
-            const sections = document.querySelectorAll('.section');
-            const cards = document.querySelectorAll('.feature-card, .testimonial');
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('visible');
-                        if (entry.target.classList.contains('section')) {
-                            entry.target.querySelectorAll('.feature-card, .testimonial').forEach(card => {
-                                card.classList.add('visible');
-                            });
-                        }
-                    }
-                });
-            }, { threshold: 0.1 });
-            sections.forEach(section => observer.observe(section));
-            cards.forEach(card => observer.observe(card));
-
-            // Scroll Indicator Hiding
-            const scrollIndicator = document.querySelector('.scroll-indicator');
-            window.addEventListener('scroll', () => {
-                if (window.scrollY > 100) {
-                    scrollIndicator.style.opacity = '0';
-                    scrollIndicator.style.pointerEvents = 'none';
-                } else {
-                    scrollIndicator.style.opacity = '1';
-                    scrollIndicator.style.pointerEvents = 'auto';
-                }
-            });
-
-            // Form Submission Spinner
-            const form = document.querySelector('form');
-            const spinner = document.querySelector('#form-spinner');
-            form.addEventListener('submit', () => {
-                spinner.classList.add('active');
-                setTimeout(() => spinner.classList.remove('active'), 2000);
-            });
-        });
-
-        // Streamlit Checkup Trigger
-        function checkStreamlitTrigger() {
-            if (window.__streamlit_checkup_triggered) {
-                window.__streamlit_checkup_triggered = false;
-                // Signal Python to check session state
-                window.location.reload();
-            }
-        }
-        setInterval(checkStreamlitTrigger, 200);
-        </script>
-    """, unsafe_allow_html=True)
-
-    # Check for Checkup Trigger
-    if st.session_state.checkup_triggered:
-        st.session_state.checkup_triggered = False
-        on_start_checkup()
+    # Note: If there's custom JavaScript for the '#start-checkup-hero' button that calls 
+    # event.preventDefault(), it might interfere with the href navigation.
+    # The ripple effect on buttons is typically CSS-driven or uses JS that shouldn't interfere.

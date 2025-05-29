@@ -249,14 +249,16 @@ def process_audio_and_get_transcription(audio_data, backend_url, auth_token):
     st.info(f"Sending {len(wav_bytes)} bytes of WAV data for transcription.")
     files = {'file': ('audio.wav', wav_bytes, 'audio/wav')}
     headers = {"Authorization": f"Bearer {auth_token}"}
-    transcribe_url = f"{backend_url}/transcribe"
+    # Changed from /transcribe to /utils/extract to match the backend route
+    transcribe_url = f"{backend_url}/utils/extract" 
     
     try:
         response = requests.post(transcribe_url, files=files, headers=headers)
         response.raise_for_status()  # Raise an exception for bad status codes
         transcription_response = response.json()
         st.success("Transcription received successfully.")
-        return transcription_response.get("transcription", "No transcription found in response.")
+        # Changed from "transcription" to "text" to match the backend response key
+        return transcription_response.get("text", "No transcription found in response.") 
     except requests.exceptions.RequestException as e:
         st.error(f"Error sending audio for transcription: {str(e)}")
         if hasattr(e, 'response') and e.response is not None:
@@ -330,38 +332,24 @@ def get_tts_audio(text, headers):
             audio_path = tts_response.json().get('audio_url')  # e.g., "/static/audio/file.mp3"
             if audio_path:
                 if audio_path.startswith("http://") or audio_path.startswith("https://"):
-                    st.info(f"TTS returned full URL: {audio_path}")
                     return audio_path  # Already a full URL
                 
-                # Construct full URL.
-                # BACKEND_URL is "http://127.0.0.1:5000/api"
-                # audio_path from backend is typically like "/static/audio/file.mp3"
-                # The goal is "http://127.0.0.1:5000/api/static/audio/file.mp3"
-                # which matches the backend log format.
+                base_url_for_static = BACKEND_URL 
                 
-                base_url_for_static = BACKEND_URL # As /api/static/... is the path
-                
-                # Ensure audio_path starts with a slash if it's a path segment relative to BACKEND_URL
                 if not audio_path.startswith("/"):
                     audio_path = "/" + audio_path
                     
                 full_url = f"{base_url_for_static.rstrip('/')}{audio_path}"
-                st.info(f"Constructed full TTS URL: {full_url}")
                 return full_url
-            st.warning("TTS service returned no audio_url.")
             return None
         else:
-            st.warning(f"TTS service unavailable. Status: {tts_response.status_code}, Response: {tts_response.text}")
             return None
             
     except requests.exceptions.Timeout:
-        st.warning(f"TTS request timed out for text: {text[:50]}...")
         return None
     except requests.exceptions.RequestException as e:
-        st.warning(f"TTS network error: {str(e)}")
         return None
     except Exception as e:
-        st.warning(f"General TTS error: {str(e)}")
         return None
 
 def generate_audio_hash(audio_data):
@@ -395,16 +383,16 @@ def render_input_bar():
     fixed at the bottom of the chat area.
     
     Returns:
-        tuple: (user_text, audio_bytes, uploaded_file, send_clicked)
+        tuple: (audio_bytes, uploaded_file, send_clicked) 
     """
     # Input bar is always at the bottom
     st.markdown('<div class="input-container bottom">', unsafe_allow_html=True)
     
-    # Text input
-    user_text = st.text_input(
+    # Text input - directly uses and updates st.session_state.user_text_input via its key
+    st.text_input(
         "Message",
         placeholder="Type your message or use voice recording...",
-        key="user_text_input",
+        key="user_text_input", 
         label_visibility="collapsed"
     )
     
@@ -415,25 +403,18 @@ def render_input_bar():
         
         # Audio recorder
         with col_audio:
-            # Updated audio_recorder with supported parameters
-            audio_bytes = audio_recorder(
-                # How often to yield audio data (in ms)
+            audio_bytes = audio_recorder( 
                 interval=250,  
-                # Silence threshold (lower means more sensitive to sound)
                 threshold=40,  
-                # How long to wait in silence before stopping (in ms)
-                silenceTimeout=1500, 
-                #key="chat_audio_recorder_input_v3" # Unique key
+                silenceTimeout=1500
             )
-            # The audio_recorder component provides its own visual feedback.
-            # The custom st.markdown for "Audio captured!" or "Record" is removed.
         
         # File upload
         with col_upload:
             uploaded_file = st.file_uploader(
                 "📎",
                 type=["pdf", "png", "jpg", "jpeg", "wav", "mp3"],
-                key="file_uploader_widget",
+                key="file_uploader_widget", 
                 label_visibility="collapsed"
             )
         
@@ -444,7 +425,7 @@ def render_input_bar():
         st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
-    return user_text, audio_bytes, uploaded_file, send_clicked
+    return audio_bytes, uploaded_file, send_clicked # Return audio_bytes, uploaded_file, send_clicked
 
 # Main Render Function
 def render(auth_token=None):
@@ -456,36 +437,46 @@ def render(auth_token=None):
     """
     st.markdown(CHATGPT_CSS, unsafe_allow_html=True)
     
-
-    if auth_token:
+    # Initialize session state variables if they don't exist
+    if 'auth_token' not in st.session_state and auth_token:
         st.session_state.auth_token = auth_token
-
-    headers = {"Authorization": f"Bearer {st.session_state.get('auth_token', '')}"}
-    
-    # Chat naming automation function
-    def maybe_generate_chat_title(chat_id, user_message, headers):
-        try:
-            chat_url = f"{BACKEND_URL}/chats/{chat_id}"
-            chat_res = requests.get(chat_url, headers=headers)
-            if chat_res.ok:
-                chat = chat_res.json()
-                if chat.get('title', '').lower() in ("untitled", "new chat", "", None):
-                    title_res = requests.post(
-                        f"{BACKEND_URL}/chats/{chat_id}/title", 
-                        json={"user_message": user_message}, 
-                        headers=headers
-                    )
-        except Exception as e:
-            # Silent fail for title generation
-            pass
-
-    # Initialize session state
+    if 'chats' not in st.session_state:
+        st.session_state.chats = []
     if 'selected_chat_id' not in st.session_state:
         st.session_state.selected_chat_id = None
-    if 'last_audio_hash' not in st.session_state:
-        st.session_state.last_audio_hash = None
     if 'recording_active' not in st.session_state:
         st.session_state.recording_active = False
+    if 'last_processed_audio_id' not in st.session_state: 
+        st.session_state.last_processed_audio_id = None
+    if "user_text_input" not in st.session_state: # Ensure user_text_input is initialized
+        st.session_state.user_text_input = ""
+
+    headers = {"Authorization": f"Bearer {st.session_state.get('auth_token', '')}"}
+
+    # Chat naming automation function
+    def maybe_generate_chat_title(chat_id, user_message, headers_param):
+        # Check if chat title is default or too short, and if message is substantial
+        chat_details_res = requests.get(f"{BACKEND_URL}/chats/{chat_id}", headers=headers_param)
+        if chat_details_res.status_code == 200:
+            current_title = chat_details_res.json().get('title', 'Untitled')
+            if (current_title == "Untitled" or len(current_title) < 10) and len(user_message) > 15:
+                try:
+                    # Use a simpler prompt for title generation
+                    prompt = f"Generate a concise chat title (5-7 words max) for a conversation starting with: \"{user_message[:100]}...\""
+                    title_res = requests.post(
+                        f"{BACKEND_URL}/openai", 
+                        json={"prompt": prompt},
+                        headers=headers_param
+                    )
+                    if title_res.status_code == 200:
+                        new_title = title_res.json().get('response', '').strip().replace('\"', '')
+                        if new_title and 5 < len(new_title) < 70: # Basic validation for title length
+                            requests.patch(f"{BACKEND_URL}/chats/{chat_id}", json={"title": new_title}, headers=headers_param)
+                            # No need to rerun here, title update is a background task
+                except Exception as e:
+                    st.warning(f"Could not auto-generate chat title: {e}")
+        else:
+            st.warning("Could not fetch chat details to determine if title generation is needed.")
 
     def ensure_chat_exists():
         """Ensure a chat exists, create one if needed"""
@@ -536,7 +527,7 @@ def render(auth_token=None):
             st.error(f"Error loading chats: {str(e)}")
 
     # Load chat messages
-    messages = []
+    messages = [] # Initialize messages to an empty list
     if st.session_state.selected_chat_id:
         try:
             res = requests.get(f"{BACKEND_URL}/chats/{st.session_state.selected_chat_id}", headers=headers)
@@ -544,8 +535,10 @@ def render(auth_token=None):
                 messages = res.json().get('messages', [])
             else:
                 st.error("Failed to load chat messages")
+                messages = [] # Ensure messages is an empty list on error
         except Exception as e:
             st.error(f"Error loading messages: {str(e)}")
+            messages = [] # Ensure messages is an empty list on exception
 
     # Chat container setup
     # If no chat is selected, center the content (initial welcome/prompt to select/create chat).
@@ -566,140 +559,117 @@ def render(auth_token=None):
                     if msg['sender'] == 'ai':
                         audio_url = get_tts_audio(msg['content'], headers)
                         if audio_url:
-                            st.info(f"Historical loop - URL for st.audio: {audio_url}")
-                            with st.container(): # Wrap st.audio in a container
+                            with st.container(): 
                                 st.audio(audio_url)
         else:
             st.markdown("### 👋 Welcome! Start a new chat or send a message to begin.")
         
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # Render input bar - it will now always be at the bottom
-        user_text, audio_bytes, uploaded_file, send_clicked = render_input_bar()
+        # Render input bar - user_text is no longer returned directly
+        audio_bytes, uploaded_file, send_clicked = render_input_bar()
         
         # Handle audio input
         if audio_bytes is not None and len(audio_bytes) > 0:
-            # Generate hash to detect new audio
-            audio_hash = generate_audio_hash(audio_bytes)
-            
-            if audio_hash and audio_hash != st.session_state.get('last_audio_hash'):
-                st.session_state.last_audio_hash = audio_hash
-                st.session_state.recording_active = True # Potentially manage this state more carefully
+            current_audio_id = id(audio_bytes)
+            if st.session_state.get('last_processed_audio_id') != current_audio_id:
+                st.session_state.last_processed_audio_id = current_audio_id
+                st.session_state.recording_active = True 
                 
                 if ensure_chat_exists():
                     with st.spinner("Processing audio..."):
                         transcribed_text = process_audio_and_get_transcription(
                             audio_bytes, 
-                            BACKEND_URL, # Assuming BACKEND_URL is defined globally
+                            BACKEND_URL,
                             st.session_state.auth_token
                         )
-                        
-                        if transcribed_text: # Check if transcription was successful
-                            # Display user message
+                        if transcribed_text: 
                             with st.chat_message("user"):
                                 st.write(transcribed_text)
-                            
-                            # Get AI response
                             ai_success, ai_response = send_message_to_ai(
                                 st.session_state.selected_chat_id, 
                                 transcribed_text, 
                                 headers
                             )
-                            
                             if ai_success and ai_response:
-                                # Display AI response
                                 with st.chat_message("ai"):
                                     st.write(ai_response)
-                                    # Add TTS
                                     audio_url = get_tts_audio(ai_response, headers)
                                     if audio_url:
-                                        st.info(f"New AI msg (audio input) - URL for st.audio: {audio_url}")
-                                        with st.container(): # Wrap st.audio in a container
-                                            st.audio(audio_url)
-                                
-                                # Generate chat title if needed
+                                        st.audio(audio_url) 
                                 maybe_generate_chat_title(
                                     st.session_state.selected_chat_id, 
                                     transcribed_text, 
                                     headers
                                 )
+                            st.session_state.recording_active = False
+                            st.session_state.user_text_input = "" # Clear text input state for next run
+                            st.rerun() 
                         else:
-                            st.warning("Audio processed, but no transcription was returned.")
-                        
-                        st.session_state.recording_active = False # Reset recording state
-                        st.rerun()
+                            st.session_state.recording_active = False
+                else: 
+                    st.session_state.recording_active = False
         
         # Handle file upload
         if uploaded_file is not None:
             if ensure_chat_exists():
                 try:
+                    st.session_state.last_processed_audio_id = None
                     files = {'file': (uploaded_file.name, uploaded_file, uploaded_file.type)}
                     res = requests.post(f"{BACKEND_URL}/utils/extract", files=files, headers=headers)
-                    
                     if res.status_code == 200:
                         content = res.json().get('text', '')
                         if content:
-                            # Display user message
                             with st.chat_message("user"):
                                 st.write(f"*Uploaded file: {uploaded_file.name}*")
                                 st.write(content)
-                            
-                            # Get AI response
                             ai_success, ai_response = send_message_to_ai(
                                 st.session_state.selected_chat_id, 
                                 content, 
                                 headers
                             )
-                            
                             if ai_success and ai_response:
-                                with st.chat_message("ai"): # Changed "assistant" to "ai"
+                                with st.chat_message("ai"):
                                     st.write(ai_response)
-                                    # Add TTS
                                     audio_url = get_tts_audio(ai_response, headers)
                                     if audio_url:
                                         st.audio(audio_url)
-                            
+                                maybe_generate_chat_title(
+                                    st.session_state.selected_chat_id,
+                                    content,
+                                    headers
+                                )
+                            st.session_state.user_text_input = "" # Clear text input state for next run
                             st.rerun()
                     else:
                         st.error(f"File processing failed: {res.status_code}")
-                        
                 except Exception as e:
                     st.error(f"Error processing file: {str(e)}")
         
         # Handle text message send
-        if send_clicked and user_text.strip():
+        if send_clicked and st.session_state.user_text_input.strip(): # Read from session state
             if ensure_chat_exists():
-                content = user_text.strip()
-                
-                # Display user message
+                st.session_state.last_processed_audio_id = None
+                content = st.session_state.user_text_input.strip() # Use session state value
                 with st.chat_message("user"):
                     st.write(content)
-                
-                # Get AI response
                 ai_success, ai_response = send_message_to_ai(
                     st.session_state.selected_chat_id, 
                     content, 
                     headers
                 )
-                
                 if ai_success and ai_response:
                     with st.chat_message("ai"):
                         st.write(ai_response)
-                        # Add TTS
                         audio_url = get_tts_audio(ai_response, headers)
                         if audio_url:
-                            st.info(f"New AI msg (text input) - URL for st.audio: {audio_url}")
-                            with st.container(): # Wrap st.audio in a container
-                                st.audio(audio_url)
-                    
-                    # Generate chat title if needed
+                            st.audio(audio_url) 
                     maybe_generate_chat_title(
                         st.session_state.selected_chat_id, 
                         content, 
                         headers
                     )
-                
-                # Clear the text input by rerunning
+                st.session_state.user_text_input = "" # Clear text input state for next run
                 st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)

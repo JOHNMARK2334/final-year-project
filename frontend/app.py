@@ -4,10 +4,10 @@ import sys
 from dotenv import load_dotenv
 import requests
 import components.navigation as navigation
-import pages.home_page as home_page
-import pages.chat_page as chat_page
-import pages.diagnosis_wizard as diagnosis_wizard
-import pages.auth_page as auth_page
+import used.home_page as home_page
+import used.chat_page as chat_page
+import used.diagnosis_wizard as diagnosis_wizard
+import used.auth_page as auth_page
 from datetime import datetime
 
 # Load environment variables
@@ -47,9 +47,8 @@ def login(username, password):
                 'username': data['username']
             }
             st.success("Login successful!")
-            st.write("Token:", st.session_state.auth_token)
-            set_page('home')
-            st.rerun()  # Optionally rerun to update UI
+            set_page('chat')  # Redirect to chat page after login
+            st.rerun()
             return True
         else:
             st.error(response.json().get('error', 'Login failed'))
@@ -66,9 +65,16 @@ def register(username, password, email):
             timeout=5
         )
         if response.status_code == 201:
-            st.success("Registration successful! Please login.")
-            set_page('login')
-            return True
+            st.success("Registration successful! Please login to continue.") # Message updated for clarity
+            # Attempt to log in the user automatically after registration
+            # This assumes the login function handles setting auth_token and user_info
+            if login(username, password): # This will call set_page('chat') and rerun on success
+                return True # login() already handles rerun
+            else:
+                # If auto-login fails, send them to the login page as before
+                set_page('login')
+                st.rerun()
+                return False # Indicate registration was successful but login failed
         else:
             st.error(response.json().get('error', 'Registration failed'))
             return False
@@ -79,35 +85,38 @@ def register(username, password, email):
 def logout():
     st.session_state.auth_token = None
     st.session_state.user_info = None
-    set_page('login')
+    set_page('home')  # Redirect to home page after logout
+    st.rerun()
 
 # Main app logic
-if st.session_state.auth_token and st.session_state.user_info:
-    st.write(f"Welcome, {st.session_state.user_info['username']}!")
-    
-    # Show navigation only for home and chat pages
-    if st.session_state.current_page in ['home', 'chat']:
-        navigation.render(
-            on_navigate=set_page,
-            current_page=st.session_state.current_page,
-            on_logout=logout
-        )
-    
-    if st.session_state.current_page == 'home':
-        home_page.render(lambda: set_page('chat'))
-    elif st.session_state.current_page == 'chat':
-        chat_page.render(
-            backend_url=BACKEND_URL,
-            on_start_diagnosis=lambda: set_page('wizard'),
-            auth_token=st.session_state.auth_token
-        )
-    elif st.session_state.current_page == 'wizard':
+is_logged_in = bool(st.session_state.auth_token and st.session_state.user_info)
+current_page = st.session_state.current_page
+
+PAGES_REQUIRING_AUTH = ['chat'] # Removed 'wizard'
+
+if current_page in PAGES_REQUIRING_AUTH and not is_logged_in:
+    st.info("Please log in to access this page.")
+    auth_page.render(login, register) # Show login/register page
+elif current_page == 'login' or current_page == 'register': # Explicit navigation to auth pages
+    auth_page.render(login, register)
+else:
+    navigation.render(
+        on_navigate=set_page,
+        current_page=current_page,
+        is_logged_in=is_logged_in,  # Pass the login status
+        on_logout=logout
+    )
+
+    if current_page == 'home':
+        # The lambda set_page('chat') will trigger the auth check if user is not logged in
+        home_page.render(on_start_checkup=lambda: set_page('chat'))
+    elif current_page == 'chat': # This block is reached only if is_logged_in is True for 'chat'
+        chat_page.render(auth_token=st.session_state.auth_token)
+    elif current_page == 'wizard': 
         diagnosis_wizard.render(
-            backend_url=BACKEND_URL,
-            auth_token=st.session_state.auth_token,
+            backend_url=BACKEND_URL, 
             on_navigate=set_page
         )
-    else:
-        home_page.render(lambda: set_page('chat'))
-else:
-    auth_page.render(login, register)
+    # else: # Fallback for any unexpected page state
+    #     set_page('home')
+    #     st.rerun()
