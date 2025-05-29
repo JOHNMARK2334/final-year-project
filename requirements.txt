@@ -1,4 +1,4 @@
-# Core Streamlit and Web Framework
+# Core web framework
 streamlit>=1.39.0
 Flask>=3.1.0
 flask-cors>=5.0.0
@@ -7,137 +7,115 @@ Flask-Migrate>=4.0.7
 Flask-SQLAlchemy>=3.1.1
 Werkzeug>=3.1.0
 
-# WebRTC and Audio (CRITICAL FIXES)
+# WebRTC and audio processing
 aiortc>=1.13.0
 aioice>=0.10.1
-# REMOVED: audioop-lts==0.2.1 (incompatible with Python 3.10)
-# Alternative audio processing:
+audioop-lts>=0.2.1
 pydub>=0.25.1
 soundfile>=0.12.1
 SpeechRecognition>=3.10.4
 
-# Updated PyOpenSSL (CRITICAL FIX)
-pyOpenSSL>=25.0.0  # Updated from 24.1.0 to resolve aiortc conflict
+# SSL/TLS and networking
+pyOpenSSL>=25.0.0
+httpx>=0.28.0
+httpcore>=1.0.7
+requests>=2.33.0
 
-# AI/ML Libraries (Updated versions)
-openai>=1.54.0  # Updated from 1.30.1
-torch>=2.5.0  # Updated from 2.3.0
-transformers>=4.47.0  # Updated from 4.41.2
-huggingface-hub>=0.26.0  # Updated from 0.23.0
-tokenizers>=0.20.0  # Updated from 0.19.1
-safetensors>=0.4.5  # Updated from 0.4.3
+# AI/ML libraries
+openai>=1.54.0
+torch>=2.5.0
+transformers>=4.47.0
+huggingface-hub>=0.26.0
+tokenizers>=0.20.0
+safetensors>=0.4.5
 
-# Data Processing
-pandas>=2.2.3  # Updated from 2.2.2
-numpy>=1.26.4  # Keep current (stable)
-pyarrow>=18.0.0  # Updated from 16.1.0
-altair>=5.5.0  # Current is fine
+# Data processing and visualization
+pandas>=2.2.3
+numpy>=1.26.4
+pyarrow>=18.0.0
+altair>=5.5.0
+pydeck>=0.9.1
 
 # Database
-alembic>=1.16.1  # Current is fine
-SQLAlchemy>=2.0.36  # Updated from 2.0.30
-psycopg2-binary>=2.9.10  # Updated from 2.9.9
+alembic>=1.16.1
+SQLAlchemy>=2.0.36
+psycopg2-binary>=2.9.10
 
-# Visualization and UI
-pydeck>=0.9.1  # Updated from 0.8.1b0
-streamlit-webrtc>=0.47.9  # Updated from 0.47.7
-streamlit-realtime-audio-recorder>=0.0.5  # Current is fine
+# Streamlit extensions
+streamlit-webrtc>=0.47.9
+streamlit-realtime-audio-recorder>=0.0.5
 
-# HTTP and Networking
-httpx>=0.28.0  # Updated from 0.27.0
-httpcore>=1.0.7  # Updated from 1.0.5
-requests>=2.33.0  # Updated from 2.32.2
-urllib3>=2.3.0  # Updated from 2.2.1
-
-# Security and Cryptography
-cryptography>=44.0.0  # Updated from 42.0.7
-certifi>=2024.12.14  # Updated from 2024.2.2
-PyJWT>=2.10.0  # Updated from 2.8.0
-
-# Utilities
-python-dotenv>=1.0.1  # Current is fine
-click>=8.1.7  # Current is fine
-tqdm>=4.67.0  # Updated from 4.66.4
-packaging>=24.2  # Updated from 24.0
-filelock>=3.16.1  # Updated from 3.13.4
-
-# Text Processing
-beautifulsoup4>=4.13.4  # Current is fine
-deep-translator>=1.11.4  # Current is fine
-langdetect>=1.0.9  # Current is fine
-pytesseract>=0.3.13  # Updated from 0.3.12
-
-# PDF and Document Processing  
-PyPDF2>=3.0.1  # Current is fine
-pdf2image>=1.17.0  # Current is fine
-pillow>=10.4.0  # Updated from 10.3.0
-
-# Audio/TTS
-gTTS>=2.5.3  # Updated from 2.5.1
-
-# Development and Build Tools
-setuptools>=75.6.0  # Updated from 69.5.1
-wheel>=0.45.0  # Updated from 0.43.0
-
-# Type Annotations and Validation
-pydantic>=2.10.0  # Updated from 2.7.1
-pydantic_core>=2.27.0  # Updated from 2.18.2
-annotated-types>=0.7.0  # Current is fine
-typing_extensions>=4.12.2  # Updated from 4.12.0
-
-# Async and Concurrency
-anyio>=4.7.0  # Updated from 4.9.0
-sniffio>=1.3.1  # Current is fine
-
-# JSON and Schema
-jsonschema>=4.23.0  # Updated from 4.22.0
-jsonschema-specifications>=2024.10.1  # Updated from 2023.12.1
-
-# Other Core Dependencies
-attrs>=25.3.0  # Current is fine  
-blinker>=1.9.0  # Current is fine
-cachetools>=5.5.0  # Updated from 5.3.3
-charset-normalizer>=3.4.0  # Updated from 3.3.2
-colorama>=0.4.6  # Current is fine
-distro>=1.9.0  # Current is fine
-dnspython>=2.7.0  # Updated from 2.6.1
-fsspec>=2024.12.0  # Updated from 2024.5.0
-GitPython>=3.1.43  # Current is fine
-gitdb>=4.0.11  # Current is fine
-google-crc32c>=1.6.0  # Updated from 1.5.0
-greenlet>=3.1.1  # Updated from 3.0.3
-h11>=0.15.0  # Updated from 0.14.0
-idna>=3.10  # Updated from 3.7
-ifaddr>=0.2.0  # Current is fine
-itsdangerous>=2.2.0  # Current is fine
-Jinja2>=3.1.4  # Current is fine
-jitter>=0.5.0  # Updated from 0.1.7
-Mako>=1.3.8  # Updated from 1.3.5
-MarkupSafe>=3.0.2  # Updated from 2.1.5
-mpmath>=1.3.0  # Current is fine
-narwhals>=1.15.0  # Updated from 0.7.1
-networkx>=3.4.2  # Updated from 3.3
-protobuf>=5.29.0  # Updated from 5.26.1
-pycparser>=2.22  # Current is fine
-pyee>=12.1.1  # Updated from 11.0.1
-pylibsrtp>=0.10.0  # Updated from 0.8.0
-python-dateutil>=2.9.0.post0  # Current is fine
-pytz>=2024.2  # Updated from 2024.1
-PyYAML>=6.0.2  # Updated from 6.0.1
-referencing>=0.36.0  # Updated from 0.35.1
-regex>=2024.11.6  # Updated from 2024.5.15
-rpds-py>=0.22.3  # Updated from 0.18.1
-six>=1.17.0  # Updated from 1.16.0
-smmap>=5.0.1  # Current is fine
-soupsieve>=2.6  # Updated from 2.5
-sympy>=1.13.3  # Updated from 1.12
-tenacity>=9.0.0  # Updated from 8.3.0
-toml>=0.10.2  # Current is fine
-tornado>=6.4.2  # Updated from 6.4
-tzdata>=2024.2  # Updated from 2024.1
-watchdog>=6.0.0  # Updated from 4.0.0
-
-# Alternative packages (choose based on needs)
-# For audio processing instead of audioop-lts:
-# librosa>=0.10.2  # Advanced audio analysis
-# wave  # Built-in Python module for basic audio
+# Core dependencies
+annotated-types>=0.7.0
+anyio>=4.9.0
+attrs>=25.3.0
+av>=14.4.0
+beautifulsoup4>=4.13.4
+blinker>=1.9.0
+cachetools>=5.3.3
+certifi>=2024.2.2
+cffi>=1.16.0
+charset-normalizer>=3.3.2
+click>=8.1.7
+colorama>=0.4.6
+cryptography>=42.0.7
+deep-translator>=1.11.4
+distro>=1.9.0
+dnspython>=2.6.1
+python-dotenv>=1.0.1
+ffmpeg>=1.4
+filelock>=3.13.4
+fsspec>=2024.5.0
+gitdb>=4.0.11
+GitPython>=3.1.43
+google-crc32c>=1.5.0
+greenlet>=3.0.3
+gTTS>=2.5.1
+h11>=0.14.0
+idna>=3.7
+ifaddr>=0.2.0
+itsdangerous>=2.2.0
+Jinja2>=3.1.4
+jiter>=0.1.7
+jsonschema>=4.22.0
+jsonschema-specifications>=2023.12.1
+langdetect>=1.0.9
+Mako>=1.3.5
+MarkupSafe>=2.1.5
+mpmath>=1.3.0
+narwhals>=0.7.1
+networkx>=3.3
+packaging>=24.0
+pdf2image>=1.17.0
+pillow>=10.3.0
+protobuf>=5.26.1
+pycparser>=2.22
+pydantic>=2.7.1
+pydantic_core>=2.18.2
+pyee>=11.0.1
+PyJWT>=2.8.0
+pylibsrtp>=0.8.0
+PyPDF2>=3.0.1
+pytesseract>=0.3.12
+python-dateutil>=2.9.0.post0
+pytz>=2024.1
+PyYAML>=6.0.1
+referencing>=0.35.1
+regex>=2024.5.15
+rpds-py>=0.18.1
+six>=1.16.0
+smmap>=5.0.1
+sniffio>=1.3.1
+soupsieve>=2.5
+standard-aifc>=0.2.1
+standard-chunk>=0.2.0
+sympy>=1.12
+tenacity>=8.3.0
+toml>=0.10.2
+tornado>=6.4
+tqdm>=4.66.4
+typing_extensions>=4.12.0
+typing-inspection>=0.9.0
+tzdata>=2024.1
+urllib3>=2.2.1
+watchdog>=4.0.0
