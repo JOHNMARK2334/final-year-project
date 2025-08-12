@@ -57,3 +57,4 @@ deep_translator==1.12.4
 gtts==2.5.1
 PyAudio==0.2.14
 SpeechRecognition==3.10.0
+python-dotenv
