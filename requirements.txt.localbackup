@@ -60,3 +60,4 @@ SpeechRecognition==3.10.0
 python-dotenv
 pydub
 streamlit-realtime-audio-recorder
+pytesseract

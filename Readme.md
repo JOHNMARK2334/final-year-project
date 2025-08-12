@@ -62,10 +62,10 @@ Before setting up HealthAssist, ensure you have the following installed:
         ```
         BACKEND_URL=http://127.0.0.1:5000
         DATABASE_URL=postgresql://super_user:jm32@localhost:5432/medical_assistant1
-        JWT_SECRET=jwt_secret
+        JWT_SECRET=jkst-....................................
         OPENAI_API_KEY=sk-...
-        INFERMEDICA_APP_ID=ab2dfd58
-        INFERMEDICA_APP_KEY=09d416c605ec80d5060c5379d683c6cd
+        INFERMEDICA_APP_ID=........
+        INFERMEDICA_APP_KEY=09d416..................
         ```
 
 5.  **Database setup:**

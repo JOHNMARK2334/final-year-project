@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 import requests
 import io
 import tempfile
@@ -38,22 +39,22 @@ html, body, .main, .block-container, .stApp {
     overflow-x: hidden !important;
     box-sizing: border-box;
 }
-.chat-container {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    height: 100dvh !important;
-    min-height: 100dvh !important;
-    max-height: 100dvh !important;
-    overflow-y: auto !important;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    position: relative;
-    box-sizing: border-box;
-    background: #181a20 !important;
-}
+    .chat-container {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        height: 100dvh !important;
+        min-height: 100dvh !important;
+        max-height: 100dvh !important;
+        overflow-y: hidden !important;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-start;
+        position: relative;
+        box-sizing: border-box;
+        background: #181a20 !important;
+    }
 .chat-container.centered {
     justify-content: center !important;
     align-items: center !important;
@@ -408,16 +409,9 @@ def render_input_bar():
     Returns:
         tuple: (audio_bytes, uploaded_file, send_clicked) 
     """
-    # Input bar is always at the center of the screen
-    st.markdown('<div class="input-container center">', unsafe_allow_html=True)
-    
-    # Text input - uses on_change callback to clear st.session_state.user_text_input
-    def clear_user_text_input():
-        pass  # No assignment needed, placeholder to fix indentation
-
     # Chat input area with embedded audio recorder and file upload
     with st.container():
-        st.markdown('<div class="input-container center">', unsafe_allow_html=True)
+        #st.markdown('<div class="input-container center">', unsafe_allow_html=True)
         # Chat input with file upload
         user_message = st.chat_input(
             placeholder="Type your message or use voice recording...",
@@ -431,14 +425,27 @@ def render_input_bar():
             threshold=40,
             silenceTimeout=1500
         )
-        # Preview audio before sending (convert dict to bytes if needed)
+        # Audio preview with cancel and auto-hide
         if audio_bytes is not None:
             preview_bytes = convert_audio_to_bytes(audio_bytes)
             if preview_bytes and len(preview_bytes) > 0:
-                st.markdown('<div class="preview-container">', unsafe_allow_html=True)
-                st.audio(preview_bytes, format="audio/wav")
-                st.markdown('</div>', unsafe_allow_html=True)
-                st.toast("Audio recorded and ready to send.")
+                if 'show_audio_preview' not in st.session_state or 'audio_preview_time' not in st.session_state:
+                    st.session_state.show_audio_preview = True
+                    st.session_state.audio_preview_time = time.time()
+                if st.session_state.show_audio_preview:
+                    st.markdown('<div class="preview-container">', unsafe_allow_html=True)
+                    st.audio(preview_bytes, format="audio/wav")
+                    cancel = st.button("Cancel Preview", key="cancel_audio_preview")
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.toast("Audio recorded and ready to send.")
+                    # Cancel button logic
+                    if cancel:
+                        st.session_state.show_audio_preview = False
+                        st.rerun()
+                    # Auto-hide after 5 seconds
+                    if time.time() - st.session_state.audio_preview_time > 5:
+                        st.session_state.show_audio_preview = False
+                        st.rerun()
 
         # Preview file before sending (only for files uploaded via chat_input)
         uploaded_file = None
@@ -574,8 +581,10 @@ def render(auth_token=None):
     # Chat container setup
     # If no chat is selected, center the content (initial welcome/prompt to select/create chat).
     # If a chat is selected (even if it's new and has no messages yet), align to top.
-    is_centered_content = st.session_state.selected_chat_id is None # This refers to chat content, not input bar
+    is_centered_content = st.session_state.selected_chat_id is None
     container_class = "chat-container centered" if is_centered_content else "chat-container"
+    if is_centered_content:
+        st.markdown("<style>.chat-container {overflow-y: hidden !important;}</style>", unsafe_allow_html=True)
     
     with st.container():
         st.markdown(f'<div class="{container_class}" id="chat-container">', unsafe_allow_html=True)
@@ -586,7 +595,7 @@ def render(auth_token=None):
             for msg_idx, msg in enumerate(messages):
                 # Choose avatar and bubble style
                 if msg['sender'] == 'user':
-                    avatar = "�"
+                    avatar = "👨‍🦱"
                     bubble_class = "message-bubble user"
                 else:
                     avatar = "🤖"
@@ -677,6 +686,7 @@ def render(auth_token=None):
                                     headers
                                 )
                             st.session_state.recording_active = False
+                            st.session_state.show_audio_preview = False  # Hide preview after AI response
                             st.rerun()
                         else:
                             st.session_state.recording_active = False
@@ -754,8 +764,13 @@ def render(auth_token=None):
                                         headers
                                     )
                                 st.rerun()
+                            else:
+                                st.error("No content returned from backend for uploaded file.")
                         else:
-                            st.error(f"File processing failed: {res.status_code}")
+                            try:
+                                st.error(f"File processing failed: {res.status_code} - {res.text}")
+                            except Exception:
+                                st.error(f"File processing failed: {res.status_code}")
                     except Exception as e:
                         st.error(f"Error processing file: {str(e)}")
         

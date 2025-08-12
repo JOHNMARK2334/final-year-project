@@ -19,13 +19,24 @@ client = OpenAI(api_key=api_key)
 def get_openai_response(prompt):
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a helpful medical assistant. Provide informative and helpful responses about health and medical topics. Always maintain a professional and caring tone. If you're unsure about something, acknowledge the limitations and suggest consulting a healthcare professional."},
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a highly knowledgeable and helpful medical assistant. "
+                        "Provide accurate, detailed, and well-researched answers to user queries about health and medical topics. "
+                        "Cite relevant sources or guidelines when possible. "
+                        "If the user requests, provide step-by-step explanations, lists, or summaries. "
+                        "Always maintain a professional, caring, and clear tone. "
+                        "If you are unsure, acknowledge limitations and recommend consulting a healthcare professional. "
+                        "If the user asks for more detail, expand your answer with additional context, examples, or references."
+                    )
+                },
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7,
-            max_tokens=500
+            max_tokens=700
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
