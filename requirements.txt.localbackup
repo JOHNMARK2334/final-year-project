@@ -58,3 +58,5 @@ gtts==2.5.1
 PyAudio==0.2.14
 SpeechRecognition==3.10.0
 python-dotenv
+pydub
+streamlit-realtime-audio-recorder
