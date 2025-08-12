@@ -56,7 +56,6 @@ deep_translator
 gtts
 PyAudio
 SpeechRecognition
-python-dotenv
 pydub
 streamlit-realtime-audio-recorder
 pytesseract
