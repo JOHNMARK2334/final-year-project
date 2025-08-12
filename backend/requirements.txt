@@ -1,3 +1,4 @@
+python-dotenv
 # Core web framework
 streamlit==1.45.1
 Flask==3.1.1
@@ -47,8 +48,6 @@ streamlit-realtime-audio-recorder==0.1.2
 # Core dependencies - UPDATED
 # ... [keep other packages unchanged] ...
 packaging==24.0  # Downgraded to match Streamlit's requirements
-# ... [other packages] ...
-
 
 #Other requirements
 langdetect==1.0.9
