@@ -54,7 +54,7 @@ langdetect
 PyPDF2
 deep_translator
 gtts
-PyAudio
+#PyAudio
 SpeechRecognition
 pydub
 streamlit-realtime-audio-recorder
