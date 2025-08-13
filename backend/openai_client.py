@@ -16,7 +16,7 @@ if not api_key:
 # Initialize OpenAI client
 client = OpenAI(api_key=api_key)
 
-def get_openai_response(prompt):
+def get_openai_response(text):
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
@@ -33,7 +33,7 @@ def get_openai_response(prompt):
                         "If the user asks for more detail, expand your answer with additional context, examples, or references."
                     )
                 },
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": text}
             ],
             temperature=0.7,
             max_tokens=700

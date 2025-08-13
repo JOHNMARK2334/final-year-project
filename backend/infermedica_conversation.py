@@ -3,7 +3,18 @@ import os
 import logging
 import difflib
 from datetime import datetime
-import openai
+from openai import OpenAI
+from dotenv import load_dotenv
+
+env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+load_dotenv(dotenv_path=env_path)
+
+# Get API key from environment
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    logging.error("OPENAI_API_KEY not found in environment variables")
+    raise ValueError("OPENAI_API_KEY environment variable is not set")
+
 
 # Configure logging
 logging.basicConfig(
@@ -34,22 +45,35 @@ def get_infermedica_headers():
     }
     return INFERMEDICA_HEADERS
 
+client = OpenAI(api_key=api_key)
+
 def get_openai_response(text):
     try:
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+        response = client.chat.completions.create(
+            model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a medical assistant. Provide a brief diagnosis and recommendations based on the symptoms described."},
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a highly knowledgeable and helpful medical assistant. "
+                        "Provide accurate, detailed, and well-researched answers to user queries about health and medical topics. "
+                        "Cite relevant sources or guidelines when possible. "
+                        "If the user requests, provide step-by-step explanations, lists, or summaries. "
+                        "Always maintain a professional, caring, and clear tone. "
+                        "If you are unsure, acknowledge limitations and recommend consulting a healthcare professional. "
+                        "If the user asks for more detail, expand your answer with additional context, examples, or references."
+                    )
+                },
                 {"role": "user", "content": text}
             ],
-            max_tokens=150
+            temperature=0.7,
+            max_tokens=700
         )
-        return response.choices[0].message.content
+        return response.choices[0].message.content.strip()
     except Exception as e:
-        logger.error(f"OpenAI API error: {str(e)}")
+        logging.error(f"OpenAI API error: {str(e)}")
         return None
-
+    
 def get_diagnosis(evidence, sex, age):
     headers = get_infermedica_headers()
     if not headers:

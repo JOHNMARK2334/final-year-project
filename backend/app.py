@@ -23,6 +23,8 @@ from gtts import gTTS
 app = Flask(__name__)
 CORS(app)
 
+CORS(app, resources={r"/api/*": {"origins": ["https://project-bmx.streamlit.app/"]}})
+
 # Database and JWT configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://super_user:jm32@localhost:5432/medical_assistant1')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -271,27 +273,48 @@ def api_detect_language():
 @app.route('/api/utils/extract', methods=['POST'])
 def api_extract():
     if 'file' not in request.files:
+        app.logger.warning("No file uploaded in request.")
         return jsonify({'error': 'No file uploaded'}), 400
     file = request.files['file']
     filename = file.filename.lower()
+    app.logger.info(f"Received file: {filename}")
     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[-1]) as tmp:
         file.save(tmp.name)
-        if filename.endswith('.pdf'):
-            text = extract_text_from_pdf(tmp.name)
-        elif filename.endswith(('.jpg', '.jpeg', '.png')):
-            from utils import process_image
-            try:
-                text = process_image(tmp.name)
-            except Exception as e:
-                text = f"Image processing error: {str(e)}"
-        elif filename.endswith(('.wav', '.mp3', '.m4a')):
-            from utils import process_audio
-            try:
-                text = process_audio(tmp.name)
-            except Exception as e:
-                text = f"Audio processing error: {str(e)}"
-        else:
-            text = ''
+        file_size = os.path.getsize(tmp.name)
+        app.logger.info(f"Saved file to temp: {tmp.name} (size: {file_size} bytes)")
+        try:
+            if filename.endswith('.pdf'):
+                text = extract_text_from_pdf(tmp.name)
+                app.logger.info(f"PDF extraction result length: {len(text)} chars")
+                if not text.strip():
+                    app.logger.warning(f"PDF extraction returned empty text for file: {filename}")
+            elif filename.endswith(('.jpg', '.jpeg', '.png')):
+                from utils import process_image
+                try:
+                    text = process_image(tmp.name)
+                    app.logger.info(f"Image OCR result length: {len(text)} chars")
+                    if not text.strip():
+                        app.logger.warning(f"Image OCR returned empty text for file: {filename}")
+                except Exception as e:
+                    app.logger.error(f"Image processing error: {str(e)}")
+                    text = f"Image processing error: {str(e)}"
+            elif filename.endswith(('.wav', '.mp3', '.m4a')):
+                from utils import process_audio
+                try:
+                    text = process_audio(tmp.name)
+                    app.logger.info(f"Audio transcription result length: {len(text)} chars")
+                    if not text.strip():
+                        app.logger.warning(f"Audio transcription returned empty text for file: {filename}")
+                except Exception as e:
+                    app.logger.error(f"Audio processing error: {str(e)}")
+                    text = f"Audio processing error: {str(e)}"
+            else:
+                app.logger.warning(f"Unsupported file type: {filename}")
+                text = ''
+        except Exception as e:
+            app.logger.error(f"General extraction error for file {filename}: {str(e)}", exc_info=True)
+            text = f"General extraction error: {str(e)}"
+    app.logger.info(f"Final extracted text length: {len(text)} chars for file: {filename}")
     return jsonify({'text': text})
 
 # --- OpenAI Completion Endpoint ---
@@ -299,8 +322,8 @@ def api_extract():
 def api_openai():
     try:
         data = request.get_json()
-        prompt = data.get('prompt', '')
-        response = get_openai_response(prompt)
+        text = data.get('prompt', '')
+        response = get_openai_response(text)
         # Hide fallback/default responses from user
         fallback_phrases = [
             "I don't know",
@@ -320,8 +343,8 @@ def api_openai():
 def generate_image():
     try:
         data = request.get_json()
-        prompt = data.get('prompt', '')
-        if not prompt:
+        text = data.get('prompt', '')
+        if not text:
             return jsonify({'error': 'No prompt provided'}), 400
         # Use OpenAI DALL-E API
         if not os.getenv("OPENAI_API_KEY"):
@@ -329,7 +352,7 @@ def generate_image():
         import openai
         openai.api_key = os.getenv("OPENAI_API_KEY")
         response = openai.Image.create(
-            prompt=prompt,
+            prompt=text,
             n=1,
             size="512x512"
         )
