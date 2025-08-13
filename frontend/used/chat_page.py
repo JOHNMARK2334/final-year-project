@@ -280,13 +280,20 @@ def process_audio_and_get_transcription(audio_data, backend_url, auth_token):
         response = requests.post(transcribe_url, files=files, headers=headers)
         response.raise_for_status()  # Raise an exception for bad status codes
         transcription_response = response.json()
+        if 'error' in transcription_response:
+            st.error(f"Backend error: {transcription_response['error']}")
+            return None
         st.success("Transcription received successfully.")
-        # Changed from "transcription" to "text" to match the backend response key
         return transcription_response.get("text", "No transcription found in response.") 
     except requests.exceptions.RequestException as e:
         st.error(f"Error sending audio for transcription: {str(e)}")
         if hasattr(e, 'response') and e.response is not None:
-            st.error(f"Backend response: {e.response.text}")
+            try:
+                error_json = e.response.json()
+                if 'error' in error_json:
+                    st.error(f"Backend error: {error_json['error']}")
+            except Exception:
+                st.error(f"Backend response: {e.response.text}")
         return None
     except Exception as e:
         st.error(f"An unexpected error occurred during transcription request: {str(e)}")
