@@ -35,8 +35,11 @@ def set_page(page_name):
 
 def login(username, password):
     try:
+        # Ensure no trailing slash in BACKEND_URL
+        base_url = BACKEND_URL.rstrip('/')
+        login_url = f"{base_url}/auth/login"
         response = requests.post(
-            f"{BACKEND_URL}/auth/login",
+            login_url,
             json={"username": username, "password": password}
         )
         if response.status_code == 200:
@@ -59,11 +62,14 @@ def login(username, password):
 
 def register(username, password, email):
     try:
+        # Ensure no trailing slash in BACKEND_URL
+        base_url = BACKEND_URL.rstrip('/')
+        register_url = f"{base_url}/auth/register"
         response = requests.post(
-            f"{BACKEND_URL}/auth/register",
-            json={"username": username, "password": password, "email": email},
-            timeout=5
+            register_url,
+            json={"username": username, "password": password, "email": email}
         )
+        
         if response.status_code == 201:
             st.success("Registration successful! Please login to continue.") # Message updated for clarity
             # Attempt to log in the user automatically after registration
