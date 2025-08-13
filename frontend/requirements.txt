@@ -1,0 +1,7 @@
+streamlit
+requests
+numpy
+Pillow
+pydub
+streamlit-realtime-audio-recorder
+pandas
