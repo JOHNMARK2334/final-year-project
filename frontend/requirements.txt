@@ -5,3 +5,4 @@ Pillow
 pydub
 streamlit-realtime-audio-recorder
 pandas
+python-dotenv
