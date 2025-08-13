@@ -1,61 +1,25 @@
 python-dotenv
-# Core web framework
-streamlit
 Flask
 flask-cors
 Flask-JWT-Extended
 Flask-Migrate
 Flask-SQLAlchemy
 Werkzeug
-
-# WebRTC and audio processing - UPDATED
-aiortc
-aioice
-pydub
-soundfile
-SpeechRecognition
-
-# SSL/TLS and networking
-pyOpenSSL
-httpx
-httpcore
 requests
-
-# AI/ML libraries
 openai
 torch
 transformers
 huggingface-hub
 tokenizers
 safetensors
-
-# Data processing and visualization
-pandas
-numpy
-pyarrow
-altair
-pydeck
-
-# Database
-alembic
-SQLAlchemy
-psycopg2-binary
-
-# Streamlit extensions
-streamlit-webrtc
-streamlit-realtime-audio-recorder
-
-# Core dependencies - UPDATED
-# ... [keep other packages unchanged] ...
-packaging
-
-#Other requirements
 langdetect
 PyPDF2
 deep_translator
 gtts
-#PyAudio
+psycopg2-binary
+pytesseract
 SpeechRecognition
 pydub
+logging
 streamlit-realtime-audio-recorder
 pytesseract
