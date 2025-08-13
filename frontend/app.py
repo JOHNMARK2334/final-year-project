@@ -12,7 +12,7 @@ from datetime import datetime
 
 # Load environment variables
 load_dotenv(os.path.join(os.path.dirname(__file__), '../.env'))
-BACKEND_URL = "http://localhost:8000/api"
+BACKEND_URL = "http://localhost:8000/api/"
 
 # Configure the Streamlit page
 st.set_page_config(
