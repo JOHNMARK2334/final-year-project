@@ -12,7 +12,7 @@ import hashlib
 from pydub import AudioSegment
 
 # Constants
-BACKEND_URL = "http://localhost:8000/api"
+BACKEND_URL = "https://flask-backend-xcc0.onrender.com/api"
 
 # CSS Styling (keeping your existing CSS)
 CHATGPT_CSS = """
