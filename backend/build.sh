@@ -2,9 +2,11 @@
 # build.sh
 #!/bin/bash
 # Install Tesseract OCR and dependencies
-sudo apt-get update && sudo apt-get install -y \
+apt-get update && apt-get install -y \
     tesseract-ocr \
     libtesseract-dev
 # Install Python dependencies
-sudo pip install -r requirements.txt
+pip install -r requirements.txt
 
+# Add to build.sh
+echo "Tesseract version: $(tesseract --version)"
