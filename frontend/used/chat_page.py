@@ -279,7 +279,11 @@ def process_audio_and_get_transcription(audio_data, backend_url, auth_token):
     try:
         response = requests.post(transcribe_url, files=files, headers=headers)
         response.raise_for_status()  # Raise an exception for bad status codes
-        transcription_response = response.json()
+        try:
+            transcription_response = response.json()
+        except ValueError:
+            st.error(f"Backend returned invalid JSON. Raw response: {response.text}")
+            return None
         if 'error' in transcription_response:
             st.error(f"Backend error: {transcription_response['error']}")
             return None

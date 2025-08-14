@@ -38,6 +38,16 @@ db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
+# Add root and favicon routes to handle 404 errors
+@app.route("/")
+def index():
+    return "Backend server is running!", 200
+
+@app.route('/favicon.ico')
+def favicon():
+    favicon_path = os.path.join(app.root_path, 'static')
+    return send_from_directory(favicon_path, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
 print("INFERMEDICA_APP_ID:", os.getenv("INFERMEDICA_APP_ID"))
 print("INFERMEDICA_APP_KEY:", os.getenv("INFERMEDICA_APP_KEY"))
 print("OPENAI_API_KEY:", os.getenv("OPENAI_API_KEY"))
