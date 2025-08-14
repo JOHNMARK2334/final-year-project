@@ -32,6 +32,14 @@ app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET', 'jwt_secret')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(hours=1)
 app.config["JWT_IDENTITY_CLAIM"] = "sub"
 
+#other database configurations
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,  # Checks connections are alive
+    'pool_recycle': 300,    # Recycle connections after 5 mins
+    'pool_size': 5,         # Number of maintained connections
+    'max_overflow': 10      # Allow temporary connection bursts
+}
+
 logging.basicConfig(level=logging.INFO)
 
 db.init_app(app)
