@@ -1,4 +1,5 @@
 import openai
+import pytesseract
 import speech_recognition as sr
 from PIL import Image
 import torch
@@ -27,8 +28,10 @@ def process_image(image_path):
     import os
     import logging
     # Make Tesseract path configurable via environment variable
-    tesseract_path = os.getenv("TESSERACT_PATH", r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe")
-    pytesseract.pytesseract.tesseract_cmd = tesseract_path
+    #if os.name == 'nt':  # Windows
+        #pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+    #else:  # Linux (Render)
+    pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
     try:
         img = Image.open(image_path)
         img = ImageOps.grayscale(img)
