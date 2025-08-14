@@ -26,7 +26,7 @@ CORS(app)
 CORS(app, resources={r"/api/*": {"origins": ["https://project-bmx.streamlit.app/"]}})
 
 # Database and JWT configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://super_user:jm32@localhost:5432/medical_assistant1')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://medical_assistant1_user:CqhjQalOFodFEUKuTZrQJDUnaXgAMU8D@dpg-d2ep9pbuibrs738978eg-a.oregon-postgres.render.com/medical_assistant1')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET', 'jwt_secret')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(hours=1)
