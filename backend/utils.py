@@ -31,7 +31,8 @@ def process_image(image_path):
     #if os.name == 'nt':  # Windows
         #pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
     #else:  # Linux (Render)
-    pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+    tesseract_path = os.getenv("TESSERACT_PATH", "/usr/bin/tesseract")
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
     try:
         img = Image.open(image_path)
         img = ImageOps.grayscale(img)
