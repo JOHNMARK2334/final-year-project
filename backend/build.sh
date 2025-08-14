@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # build.sh
 
-apt-get update
-apt-get install -y tesseract-ocr libtesseract-dev
-export PATH=$PATH:/usr/bin
+#!/bin/bash
+pip install pytesseract pillow
+pip install -r requirements.txt
 #verify installation
 tesseract --version || { echo "Tesseract installation failed or not found!"; exit 1; }
 
