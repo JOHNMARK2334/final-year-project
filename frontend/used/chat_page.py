@@ -578,16 +578,20 @@ def render(auth_token=None):
     # Load chat messages
     messages = [] # Initialize messages to an empty list
     if st.session_state.selected_chat_id:
-        try:
-            res = requests.get(f"{BACKEND_URL}/chats/{st.session_state.selected_chat_id}", headers=headers)
-            if res.status_code == 200:
-                messages = res.json().get('messages', [])
-            else:
-                st.error("Failed to load chat messages")
-                messages = [] # Ensure messages is an empty list on error
-        except Exception as e:
-            st.error(f"Error loading messages: {str(e)}")
-            messages = [] # Ensure messages is an empty list on exception
+            try:
+                res = requests.get(f"{BACKEND_URL}/chats/{st.session_state.selected_chat_id}", headers=headers)
+                if res.status_code == 200:
+                    messages = res.json().get('messages', [])
+                else:
+                    try:
+                        error_detail = res.json().get('error', res.text)
+                    except Exception:
+                        error_detail = res.text
+                    st.error(f"Failed to load chat messages. Status: {res.status_code}. Backend error: {error_detail}")
+                    messages = [] # Ensure messages is an empty list on error
+            except Exception as e:
+                st.error(f"Error loading messages: {str(e)}")
+                messages = [] # Ensure messages is an empty list on exception
 
     # Chat container setup
     # If no chat is selected, center the content (initial welcome/prompt to select/create chat).
