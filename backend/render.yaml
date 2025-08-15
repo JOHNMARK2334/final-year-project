@@ -4,3 +4,10 @@ services:
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
+    envVars:
+      - key: TESSERACT_PATH
+        value: "/usr/bin/tesseract" # This is the default path on most Linux systems
+    plan: free
+    # Add this section to install system dependencies
+    systemPackages:
+      - tesseract-ocr
