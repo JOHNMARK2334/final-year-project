@@ -1,4 +1,10 @@
-FROM python:3.11
+FROM python:3.13
+
+RUN apt-get update && apt-get upgrade -y && apt-get clean
+# Install system dependencies for PyAudio
+RUN apt-get update && apt-get install -y \
+    portaudio19-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
